@@ -1,4 +1,4 @@
-# Kölsch Tandem Project — dialect ASR (→ TTS)
+# Kölsch Tandem Project — dialect phoneme recognition (→ TTS)
 
 Speech technology for **Kölsch** (Ripuarian German, Cologne), developed as part
 of the **CIF Tandem Fellowship** at **IfL-Phonetik, University of Cologne**, in
@@ -16,7 +16,7 @@ stage.
 > **Tandem Fellowship.** A tandem pairs an incoming researcher with a local host
 > to build a shared, transferable resource. Here the shared resource is an
 > open, documented Kölsch speech-technology stack — usable by the IfL, the Royal
-> Academy of Cambodia's tooling work, and the wider low-resource ASR/TTS
+> Academy of Cambodia's tooling work, and the wider low-resource phoneme-recognition and TTS
 > community.
 
 > Source corpus: *Alles Kölsch* (Bhatt & Lindlar, 1998) — ~4 h of narrative
@@ -74,7 +74,7 @@ phoneme sequence, this WER is a phoneme-token error rate (equivalent to PER).
 
 ## Roadmap
 
-- [x] **Stage 1 — ASR.** OCR → corpus → segmentation → normalisation → XLS-R-300M
+- [x] **Stage 1 — Phoneme recognition.** OCR → corpus → segmentation → normalisation → XLS-R-300M
       fine-tune → error analysis (this repo).
 - [ ] **Stage 2 — TTS.** Reuse the aligned, phoneme-normalised corpus to train a
       Kölsch text-to-speech voice.
