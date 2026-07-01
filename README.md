@@ -92,8 +92,13 @@ data/
 ├── pages/*.png        scanned pages     -> 1 OCR
 ├── audio/*.wav        recordings        -> 3 Segmentation
 ├── transcripts/*.txt  OCR output        -> 2 Corpus, 3 Segmentation
-└── segments/          clips + manifest  -> 4 Normalise, 5 Fine-tune, 6/7
+├── segments/          clips + manifest  -> 4 Normalise, 5 Fine-tune, 6/7
+└── lexicon.csv        Kölsch orthography→IPA dictionary (kolsch, ipa, frequency)
 ```
+
+**Orthography ↔ IPA.** `04_normalisation/kolsch_g2p.py` is the rule-based Kölsch
+G2P; `data/lexicon.csv` is the pronunciation dictionary it generates. Notebook 4
+phonemises text dictionary-first, converter-for-OOV.
 
 ---
 
