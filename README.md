@@ -38,6 +38,7 @@ stage.
 | 4 | **Normalise** | Phonological rules (a/b/c) + IPA phoneme tokeniser | [`04_normalisation/`](04_normalisation/04_phonological_normalisation.ipynb) |
 | 5 | **Fine-tune** | Wav2Vec2 XLS-R-300M + CTC head | [`05_finetune/`](05_finetune/05_wav2vec2_finetune.ipynb) |
 | 6 | **Analyse** | Test-set WER/CER + phoneme error analysis | [`06_analysis/`](06_analysis/06_error_analysis.ipynb) |
+| 7 | **Word-level** *(alt. target)* | IPA word-level & orthographic recognition | [`07_word_level/`](07_word_level/07_word_level_recognition.ipynb) |
 
 ### Open in Colab
 - 1 OCR — https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/01_ocr/01_ocr_digitisation.ipynb
@@ -46,8 +47,26 @@ stage.
 - 4 Normalise — https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/04_normalisation/04_phonological_normalisation.ipynb
 - 5 Fine-tune — https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/05_finetune/05_wav2vec2_finetune.ipynb
 - 6 Analyse — https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/06_analysis/06_error_analysis.ipynb
+- 7 Word-level — https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/07_word_level/07_word_level_recognition.ipynb
 
 *(Replace `chemvatho/kolsch-tandem` with your own GitHub path once you push.)*
+
+---
+
+## Recognition targets
+
+Stages 1–4 are shared data preparation. From there, three recognition targets are
+available — all Wav2Vec2 XLS-R-300M + CTC, differing only in the label and vocab:
+
+| Target | Notebook | Unit | Tokenizer | Output | Metric |
+|--------|----------|------|-----------|--------|--------|
+| **Phonemes** (primary) | 5 | IPA phoneme | `Wav2Vec2PhonemeCTCTokenizer` | `d a t \| ə s ʊ` | WER/CER (phoneme-level) |
+| **IPA word-level** | 7 (`TARGET="ipa"`) | character | `Wav2Vec2CTCTokenizer` | `dat əsʊ` | WER/CER (word-level) |
+| **Orthographic** | 7 (`TARGET="orthography"`) | character | `Wav2Vec2CTCTokenizer` | `dat esu` | WER/CER (word-level) |
+
+The phoneme recogniser is the primary system. The word-level notebook is an
+alternative target: a single wrong character fails the whole word, so word-level
+WER sits above the phoneme error rate — expected, not a regression.
 
 ---
 
