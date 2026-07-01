@@ -1,0 +1,19 @@
+# core
+transformers>=4.40
+datasets
+evaluate
+jiwer
+torch
+torchaudio
+accelerate
+# data / audio
+soundfile
+librosa
+pandas
+numpy
+matplotlib
+# OCR (notebook 1)
+pytesseract
+easyocr
+google-generativeai
+pillow

@@ -1,0 +1,14 @@
+# data & model artefacts (keep the repo light)
+pages/
+recordings/
+segments/
+*.wav
+*.flac
+ocr_txt/
+kolsch_wav2vec2_model/
+*.ckpt
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+.DS_Store
+*.env
