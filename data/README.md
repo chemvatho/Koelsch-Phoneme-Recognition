@@ -1,0 +1,20 @@
+# data/ — global layout (batch-ready)
+
+The pipeline is written to process **many** files; this folder ships the single
+worked **example** (one page image + its audio). Add more files and the code
+picks them up automatically — nothing is hard-coded to one file.
+
+```
+data/
+├── index.csv          registry: one row per recording (id, page, audio, transcript, speaker, metadata)
+├── pages/*.png        scanned transcription pages        -> stage 1 (OCR)
+├── audio/*.wav        recordings (any sample rate)       -> stage 3 (segmentation)
+├── transcripts/*.txt  OCR output / clean transcript      -> stages 2, 3
+└── segments/          utterance clips + manifest.csv     -> stage 5 (training)
+```
+
+**Example row** — `page_1.png` is the printed transcript of `track1_mono.wav`
+(CD 1, track 01, "Tee mit Schuss", speaker Aldorf Klaus, 51, Altstadt-Süd).
+
+To scale up: drop more scans in `pages/`, more recordings in `audio/`, and add a
+row per recording to `index.csv`. Every notebook iterates over `index.csv`.

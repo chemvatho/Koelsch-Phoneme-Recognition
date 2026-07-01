@@ -70,6 +70,33 @@ WER sits above the phoneme error rate — expected, not a regression.
 
 ---
 
+## Example data & scaling to many files
+
+Every notebook is **global**: it iterates the registry `data/index.csv` (one row
+per recording) and globs `data/pages/*.png` / `data/audio/*.wav`. Nothing is
+hard-coded to a single file.
+
+The repo ships **one worked example** — `page_1.png` (a scanned page) and
+`track1_mono.wav` (its audio), which are the same recording: CD 1 / 01,
+*"Tee mit Schuss"*, speaker Aldorf Klaus (51, Altstadt-Süd). It flows through
+all stages: OCR the page → corpus stats → forced-align the audio to the text →
+segment → phonemise → train → analyse.
+
+**To scale up:** drop more scans in `data/pages/`, more recordings in
+`data/audio/`, add a row per recording to `data/index.csv` — every notebook then
+processes them all. See [`data/README.md`](data/README.md).
+
+```
+data/
+├── index.csv          registry (id, page_image, audio, transcript, speaker, metadata)
+├── pages/*.png        scanned pages     -> 1 OCR
+├── audio/*.wav        recordings        -> 3 Segmentation
+├── transcripts/*.txt  OCR output        -> 2 Corpus, 3 Segmentation
+└── segments/          clips + manifest  -> 4 Normalise, 5 Fine-tune, 6/7
+```
+
+---
+
 ## Results
 
 On the held-out test set (467 utterances, 17,455 reference phonemes), the
