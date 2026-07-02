@@ -2,7 +2,7 @@
 
 Speech technology for **Kölsch** (Ripuarian German, Cologne), developed as part
 of the **CIF Tandem Fellowship** at **IfL-Phonetik, University of Cologne**, in
-tandem with **Simon Rössig**.
+tandem with **Simon Rössig** and Reinhold Gleisbach.
 
 This repository holds the reproducible, six-stage pipeline that turns a printed
 dialect corpus and its audio CDs into a fine-tuned **phoneme recogniser** for
