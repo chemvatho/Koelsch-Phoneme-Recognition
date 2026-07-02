@@ -17,3 +17,9 @@ __pycache__/
 # The worked EXAMPLE inputs ARE committed so the pipeline runs out of the box:
 #   data/pages/page_1.png · data/audio/track1_mono.wav
 #   data/transcripts/page_1.txt · data/index.csv
+
+# generated distribution figures
+kolsch_ipa_distribution.png
+kolsch_orthography_distribution.png
+kolsch_phoneme_distribution.png
+*_char_distribution.png
