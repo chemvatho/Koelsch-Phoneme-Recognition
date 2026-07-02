@@ -96,7 +96,7 @@ data/
 └── lexicon.csv        Kölsch orthography→IPA dictionary (kolsch, ipa, frequency)
 ```
 
-**Orthography ↔ IPA.** `04_normalisation/kolsch_g2p.py` is the rule-based Kölsch
+**Orthography ↔ IPA.** `kolsch_g2p.py` is the rule-based Kölsch
 G2P; `data/lexicon.csv` is the pronunciation dictionary it generates. Notebook 4
 phonemises text dictionary-first, converter-for-OOV.
 
@@ -142,7 +142,24 @@ cd kolsch-tandem
 pip install -r requirements.txt
 ```
 
-Then open any notebook in Jupyter or click its Colab badge. Stages are
+Then open any notebook in Jupyter or click its Colab badge.
+
+### Running it anywhere (VS Code · Jupyter · Colab)
+
+Every notebook starts with a **portable setup cell** that finds the repo root
+(via `kolsch_paths.py`) and defines absolute paths — so the same notebook runs
+unchanged whether your working directory is the repo root (Jupyter), a stage
+subfolder (VS Code), or `/content` (Colab). All CSV / image / audio / model
+paths come from `kolsch_paths.py`:
+
+```python
+from kolsch_paths import ROOT, DATA, PAGES, AUDIO, TRANS, SEG, INDEX, LEXICON, MODELS
+```
+
+On **Colab** the setup cell clones the repo automatically (edit the URL to your
+fork), or mount Google Drive and point `kolsch_paths.ROOT` at your folder.
+Never hard-code `data/...` — always use these variables.
+ Stages are
 independent: each reads the previous stage's output (described in its README)
 and you can start from whichever stage you have data for.
 

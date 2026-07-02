@@ -4,6 +4,7 @@ data/transcripts/easyocr_*.txt
 data/transcripts/*_tess_cleaned.png
 data/segments/*.wav
 data/segments/manifest.csv
+models/
 kolsch_wav2vec2_model/
 kolsch_wordlevel_*/
 *.ckpt
