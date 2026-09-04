@@ -32,7 +32,7 @@ partner.
 |---|---|
 | [Quick start](#quick-start) | get an alignment out of it in ten minutes |
 | [The pipeline](#the-pipeline) | nine notebooks, stage by stage |
-| [**Forced alignment — start with `vc-onset`**](#forced-alignment--start-with-absorbvc-onset) | the recommended setting, and why |
+| [**Forced alignment — start with `vc`**](#forced-alignment--start-with-absorbvc) | the recommended setting, and why |
 | [Two recognition targets](#two-recognition-targets) | IPA phonemes vs orthography |
 | [OCR](#ocr-why-the-character-set-decides-everything) | why the character set decides the project |
 | [Where it ran and where it didn't](#where-it-ran-and-where-it-didnt) | honest test status |
@@ -89,10 +89,10 @@ book + CDs ─► 1 OCR ─► 2 Corpus ─► 3 Segment ─► 4 Normalise ─�
 
 ---
 
-## Forced alignment — start with `absorb="vc-onset"`
+## Forced alignment — start with `absorb="vc"`
 
-**`vc-onset` is the recommended setting. If you read one section of this
-README, read this one.**
+**`vc` is the recommended setting. If you read one section of this README,
+read this one.**
 
 CTC is **peaky**. The model emits one confident frame per phone and blanks in
 between, so the labelled frames cover only **14–21 %** of the timeline on the
@@ -137,8 +137,8 @@ kept 42.
 | `none` | nothing — phones keep only their labelled frames, and the TextGrid has holes |
 | `even` | split down the middle |
 | `hybrid` | cut at the **spectral-change peak** inside a word; posterior-weighted across word edges |
-| `vc` | word-internally, C→V and V→C runs go to the **vowel**; everything else as `hybrid` |
-| **`vc-onset`** ← **use this** | `vc`, plus word boundaries placed at the end of the pause |
+| **`vc`** ← **use this** | word-internally, C→V and V→C runs go to the **vowel**; everything else as `hybrid` |
+| `vc-onset` | `vc`, plus word boundaries at the end of the pause — **see the caveat below** |
 
 ![what vc changes](docs/figures/vc_vs_hybrid.png)
 
@@ -168,51 +168,69 @@ This also explains the vowel. `vc` gives *øː* 240 ms against MFA's 290, but it
 short at its **left** edge, because the `/h/` in front of it starts too early.
 One cause, two symptoms.
 
-### The fix: `absorb="vc-onset"`
+### `vc-onset`, and why it is not the default
 
-Placing a word onset is a different problem. Inside a word you are deciding
-which of two phones owns a blank run. Across a word boundary the gap usually
-**contains an actual pause**, and the question is where the next word starts —
-which the energy answers directly and the CTC posteriors do not. MFA and MAUS
-both get this for free because they model silence explicitly; `vc` did not.
+Placing a word onset is a different problem. Inside a word you decide which of
+two phones owns a blank run. Across a word boundary the gap usually **contains a
+real pause**, and the question is where the next word starts — which the energy
+answers directly and the CTC posteriors do not. MFA and MAUS get this for free by
+modelling silence explicitly.
 
 `vc-onset` keeps `vc` word-internally and puts each word-boundary gap at **the
-end of its silence**, falling back to the flux peak when the words run together.
-Validated on **941 word-initial onsets across the 84 helga recordings**, against
-both references independently:
+end of its silence**. Measured on **941 word-initial onsets across the 84 helga
+recordings**, against both references independently, it is a clear win:
 
-| word-initial onset | vs MFA | vs MAUS |
+| | vs MFA | vs MAUS |
 |---|---|---|
-| `vc` — posterior-weighted | 62.2 ms | 72.9 ms |
-| **`vc-onset` — speech onset** | **42.5 ms** | **42.9 ms** |
+| word-initial onset, `vc` | 62.2 ms | 72.9 ms |
+| word-initial onset, **`vc-onset`** | **42.5 ms** | **42.9 ms** |
+| word-final offset, `vc` | 57.4 ms | 71.8 ms |
+| word-final offset, **`vc-onset`** | **55.0 ms** | **57.1 ms** |
 
-Word-internal boundaries are untouched, to 0.1 ms. On the `/h/` of *høːt* the
-onset moves from 0.341 s to **0.455** against MFA's 0.460 — **5 ms out, from
-119** — and `/h/` shrinks from 181 ms to 67, now between MFA's 10 and MAUS's 100
-rather than far past both.
+On the `/h/` of *høːt* the onset moves from 0.341 s to **0.455** against MFA's
+0.460 — 5 ms out, from 119.
 
-> **One rule was tried and rejected, and it is worth knowing why.** Applying the
-> vowel rule at word onsets looked good on wenker2 — 113.0 → 90.0 ms against MFA.
-> On helga's 941 boundaries it is **worse than doing nothing** (62.2 → 67.5). It
-> was fitting one speaker. The same happened to a class-rule fallback for
-> pause-less gaps: better on wenker2, 42.5 → 50.0 on helga. **Where 21 boundaries
-> and 941 boundaries disagree, believe the 941.** This is the same trap `vc`
-> itself was fitted in, and only the larger set catches it.
+> ### And yet it is worse against the only human boundaries we have
+>
+> Two hand-cut excerpts give three speech-flanked edges that a person placed in
+> Praat. Mean distance to the nearest system boundary:
+>
+> | | mean | dann offset | wööd onset | wööd offset |
+> |---|---|---|---|---|
+> | **`vc`** | **7.2 ms** | 3.2 | 6.8 | 11.7 |
+> | `vc-onset` | 62.0 ms | 36.0 | 26.0 | 124.0 |
+> | MFA | 123.7 ms | 121.0 | 111.0 | 139.0 |
+> | MAUS | 80.8 ms | 78.1 | 68.1 | 96.1 |
+>
+> ![the hand-cut excerpt edges](docs/figures/handcut_excerpts.png)
+>
+> `vc-onset` moves *towards MFA and MAUS and away from the human*. The obvious
+> reading is that it is imitating a convention those two share — they have a
+> common HMM-GMM lineage, and both put a boundary at the edge of a silence
+> interval — rather than getting closer to the truth. Agreement with them is not
+> the same as accuracy, and this is the clearest evidence in the repository that
+> the difference matters.
+>
+> **Three boundaries from one speaker is an anecdote**, and 941 boundaries
+> against two related systems is not ground truth either. The two pieces of
+> evidence genuinely disagree and neither settles it.
 
-### What is still not fixed
-
-`vc-onset` fixes the word onset. It does **not** fix the boundary *between* a
-consonant and the vowel after it: `/h/` still ends at 0.522 s where MFA ends it
-at 0.470, so *øː* stays 241 ms against MFA's 290. The C→V rule hands the blank
-run to the vowel starting at the consonant's spike **end**, and for a fricative
-that spike runs on as long as the frication does.
-
-There is no agreed target to fix it against: MFA says `/h/` is 10 ms, MAUS says
-100. Beyond this point the honest move is to learn the boundary from the
-**acoustics of the specific transition** — release burst, formant transition,
-frication onset, voicing — rather than from a phone-class lookup. That needs a
-hand-corrected reference first, and it is the reason one is the top item under
+So `vc` stays the default, `vc-onset` is available, and the question is open
+until there is a hand-corrected reference. That is why one sits at the top of the
 [Roadmap](#roadmap).
+
+### What neither of them fixes
+
+The boundary *between* a consonant and the vowel after it. `/h/` still ends at
+0.522 s where MFA ends it at 0.470, so *øː* stays 241 ms against MFA's 290. The
+C→V rule hands the blank run to the vowel starting at the consonant's spike
+**end**, and for a fricative that spike runs on as long as the frication does.
+
+There is no agreed target to fix it against — MFA says `/h/` is 10 ms, MAUS says
+100. Past this point the honest move is to learn the boundary from the
+**acoustics of the specific transition** — release burst, formant transition,
+frication onset, voicing — rather than a phone-class lookup. That needs the
+hand-corrected reference first.
 
 ### Does it help?
 
@@ -271,10 +289,10 @@ toward MFA and MAUS, which share an HMM-GMM lineage, so a wav2vec2-specific
 improvement is *understated* by it.
 
 Against the only human-placed boundaries available — three edges of two
-hand-cut excerpts — wav2vec2 sat **7.2 ms** away on average, MFA 123.7 ms and
-MAUS 80.8 ms. **Three boundaries from one speaker is an anecdote, not a result.**
-It is reported because it points the same way as the 84-recording comparison, not
-as evidence on its own.
+hand-cut excerpts — `vc` sat **7.2 ms** away on average, MAUS 80.8 ms and MFA
+123.7 ms. **Three boundaries from one speaker is an anecdote, not a result**, and
+see the caveat above for the case where it and the 84-recording comparison point
+in opposite directions.
 
 ---
 
