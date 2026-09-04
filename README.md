@@ -122,7 +122,13 @@ Split it down the middle and the consonant eats half the vowel.
 ![why the consonants grew](docs/figures/why_consonants_grew.png)
 
 That is exactly what happened: `/h/` in *høːt* came out **307 ms** where MFA said
-10 ms, and `/b/` in *bɛsɐ* took **197 ms** while its own vowel kept 42.
+10 ms and MAUS 100 ms, and `/b/` in *bɛsɐ* took **197 ms** while its own vowel
+kept 42.
+
+> Take MFA's 10 ms `/h/` as an illustration, not a target. It is below MFA's own
+> ~30 ms duration floor — 4 of the 38 segments in that file are — and MAUS puts
+> the same `/h/` at 100 ms. Where `/h/` really ends is not something these two
+> references agree on.
 
 ### The four gap rules
 
@@ -137,6 +143,44 @@ That is exactly what happened: `/h/` in *høːt* came out **307 ms** where MFA s
 
 Red arrows mark every internal boundary that moved. **Word onsets are untouched
 by construction**, so cross-system comparisons stay valid.
+
+### What `vc` does not fix
+
+That last sentence is a methodological virtue and an accuracy problem at the same
+time, and the second half deserves saying out loud: **the largest remaining error
+is the one the rule refuses to touch.** Split the same alignment by position:
+
+| onset position | vs MFA | vs MAUS |
+|---|---|---|
+| **word-internal** — where `vc` applies | **11.7 ms** | **18.0 ms** |
+| **word-initial** — where it does not | **113.0 ms** | **66.5 ms** |
+
+*Median \|Δ\|, one recording plus its two halves, n = 52 internal / 21 initial.*
+
+Word-internal boundaries are close to both references. Word-initial ones are
+roughly ten times worse. The `/h/` of *høːt* is an ordinary instance: `vc` starts
+it at 0.341 s where MFA starts it at 0.460 — **119 ms early** — because that
+boundary is a *word onset* and falls back to the posterior-weighted split.
+
+This also explains the vowel. `vc` gives *øː* 240 ms against MFA's 290, but its
+**right** edge is already right (0.762 vs 0.760 s, 2 ms apart). The vowel is
+short at its **left** edge, because the `/h/` in front of it starts too early.
+One cause, two symptoms.
+
+Applying the vowel rule at word onsets too was tested and **helps, but does not
+solve it** — word-initial error falls to 90.0 ms against MFA and 51.8 against
+MAUS, with word-internal boundaries unchanged to 0.1 ms. Still roughly eight
+times the internal error. Placing a word onset is mostly a question of where
+*speech* begins after a pause, which is a different problem from deciding which
+of two phones owns a blank run. It is therefore **not** enabled: it would move
+the word onsets that the three-system comparison is measured on, invalidating
+every agreement figure above for a partial gain.
+
+The principled fix is to learn where a boundary belongs from the **acoustics of
+the specific transition** — release bursts, formant transitions, frication onset,
+voicing — instead of from a phone-class lookup fitted to 45 boundaries by one
+speaker. That is the next piece of work, and it needs a hand-corrected reference
+before it can be trained or trusted.
 
 ### Does it help?
 
