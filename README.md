@@ -142,8 +142,12 @@ kept 42.
 
 ![what vc changes](docs/figures/vc_vs_hybrid.png)
 
-Red arrows mark every internal boundary that moved. **Word onsets are untouched
-by construction**, so cross-system comparisons stay valid.
+All three wav2vec2 gap rules on one chain. **Red arrows** are the 17
+word-**internal** boundaries `vc` moves (from `hybrid`); **teal arrows** are the
+9 **word onsets** `vc-onset` moves (from `vc`). The two sets are disjoint by
+construction — `vc` never fires on a word-separator gap, and `vc-onset` fires
+only there. So in `vc`, **word onsets are untouched** and cross-system
+comparisons stay valid.
 
 ### What `vc` does not fix
 
