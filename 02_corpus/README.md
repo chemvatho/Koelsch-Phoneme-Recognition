@@ -1,6 +1,6 @@
 # 2 · Corpus & speaker statistics
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/02_corpus/02_corpus_statistics.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/Koelsch-Phoneme-Recognition/blob/main/02_corpus/02_corpus_statistics.ipynb)
 
 Quantifies the digitised corpus: token/type counts and type–token ratio,
 per-CD word distribution, speaker demographics (age histogram, neighbourhood

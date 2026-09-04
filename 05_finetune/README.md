@@ -1,6 +1,6 @@
 # 5 · Fine-tuning Wav2Vec2 XLS-R-300M
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/05_finetune/05_wav2vec2_finetune.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/Koelsch-Phoneme-Recognition/blob/main/05_finetune/05_wav2vec2_finetune.ipynb)
 
 Fine-tunes `facebook/wav2vec2-xls-r-300m` with a CTC head for Kölsch phoneme
 recognition: builds the phoneme vocabulary, prepares the dataset, and trains

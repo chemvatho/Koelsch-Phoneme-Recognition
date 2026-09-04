@@ -1,6 +1,6 @@
 # 1 · OCR digitisation
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/01_ocr/01_ocr_digitisation.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/Koelsch-Phoneme-Recognition/blob/main/01_ocr/01_ocr_digitisation.ipynb)
 
 Converts the printed **Alles Kölsch** (Bhatt & Lindlar, 1998) transcription
 pages into clean Unicode text, preserving the dialectal orthography.

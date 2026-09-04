@@ -10,14 +10,35 @@ data/
 ├── pages/*.png        scanned transcription pages        -> stage 1 (OCR)
 ├── audio/*.wav        recordings (any sample rate)       -> stage 3 (segmentation)
 ├── transcripts/*.txt  OCR output / clean transcript      -> stages 2, 3
-└── segments/          utterance clips + manifest.csv     -> stage 5 (training)
+├── segments/          utterance clips + manifest.csv     -> stages 5, 7, 8, 9
+└── textgrids/         phone + word alignments            <- stage 9 output
 ```
+
+`segments/` and `textgrids/` are **generated** and git-ignored — stage 3 writes
+the first, stage 9 the second. Note that stage 3 *rewrites* `manifest.csv` from
+scratch, so **stage 4 has to run after stage 3**, not before: otherwise the
+`ipa_wordform` and `phonetic` columns stages 5, 7 and 8 need are silently absent.
 
 **Example row** — `page_1.png` is the printed transcript of `track1_mono.wav`
 (CD 1, track 01, "Tee mit Schuss", speaker Aldorf Klaus, 51, Altstadt-Süd).
 
 To scale up: drop more scans in `pages/`, more recordings in `audio/`, and add a
 row per recording to `index.csv`. Every notebook iterates over `index.csv`.
+
+## Rights — read before redistributing
+
+`pages/page_1.png` and `audio/track1_mono.wav` are from ***Alles Kölsch***
+(Bhatt & Lindlar, 1998), published by the **Akademie för uns kölsche Sproch**,
+which holds the rights. They are included here as a single worked example under
+this project's arrangement with the Akademie. **The repository's MIT licence
+covers the code, not this folder.** To redistribute the page or the audio, ask
+the Akademie.
+
+The speaker's name, age, occupation and neighbourhood in `index.csv` are
+reproduced from the book's own published speaker table — in print since 1998, so
+nothing here discloses more than the publication does. **If you add recordings
+that are not already published, do not copy this pattern**: use an opaque
+speaker id, and keep the identity mapping outside the repository.
 
 ## Pronunciation dictionary
 

@@ -12,8 +12,13 @@ librosa
 pandas
 numpy
 matplotlib
+scikit-learn
 # OCR (notebook 1)
 pytesseract
 easyocr
+opencv-python          # cv2 — notebook 1 preprocesses the scan before Tesseract
 google-generativeai
 pillow
+# notebook 1 also needs the Tesseract BINARY, which pip cannot install:
+#   apt-get install tesseract-ocr tesseract-ocr-deu     (Debian/Ubuntu)
+#   brew install tesseract tesseract-lang               (macOS)

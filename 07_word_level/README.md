@@ -1,6 +1,6 @@
 # 7 · Word-level recognition (IPA & orthographic)
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/07_word_level/07_word_level_recognition.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/Koelsch-Phoneme-Recognition/blob/main/07_word_level/07_word_level_recognition.ipynb)
 
 An **alternative recognition target** to the phoneme model (Notebook 5). Trains
 character-level `Wav2Vec2CTCTokenizer` models (space → `|` word delimiter) on

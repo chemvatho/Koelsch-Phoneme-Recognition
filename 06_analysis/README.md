@@ -1,6 +1,6 @@
 # 6 · Test-set inference & error analysis
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/06_analysis/06_error_analysis.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/Koelsch-Phoneme-Recognition/blob/main/06_analysis/06_error_analysis.ipynb)
 
 Runs the fine-tuned model on the test set and reports **WER / CER** (the
 training metrics) plus a phoneme-level error analysis: insertions/deletions per

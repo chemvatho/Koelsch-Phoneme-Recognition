@@ -2,8 +2,8 @@
 data/transcripts/tesseract_*.txt
 data/transcripts/easyocr_*.txt
 data/transcripts/*_tess_cleaned.png
-data/segments/*.wav
-data/segments/manifest.csv
+data/segments/
+data/textgrids/
 models/
 kolsch_wav2vec2_model/
 kolsch_wordlevel_*/
@@ -18,8 +18,11 @@ __pycache__/
 #   data/pages/page_1.png · data/audio/track1_mono.wav
 #   data/transcripts/page_1.txt · data/index.csv
 
-# generated distribution figures
+# generated figures — the notebooks write these into the repo root when run.
+# docs/figures/ is the curated set the README links to and IS committed.
 kolsch_ipa_distribution.png
 kolsch_orthography_distribution.png
 kolsch_phoneme_distribution.png
 *_char_distribution.png
+insertions_deletions.png
+substitution_confusion.png

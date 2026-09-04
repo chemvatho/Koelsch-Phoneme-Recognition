@@ -1,204 +1,397 @@
-# Kölsch Tandem Project — dialect phoneme recognition (→ TTS)
+# Kölsch Phoneme Recognition
 
-Speech technology for **Kölsch** (Ripuarian German, Cologne), developed as part
-of the **CIF Tandem Fellowship** at **IfL-Phonetik, University of Cologne**, in
-tandem with **Simon Rössig**.
+**Speech technology for Kölsch** (Ripuarian German, Cologne) — a reproducible
+pipeline that turns a printed 1998 dialect corpus and its four audio CDs into a
+fine-tuned phoneme recogniser, an orthographic recogniser, and phone-level
+forced alignments.
 
-This repository holds the reproducible, six-stage pipeline that turns a printed
-dialect corpus and its audio CDs into a fine-tuned **phoneme recogniser** for
-Kölsch (Wav2Vec2 XLS-R-300M). It is stage one of the Tandem project; the same
-data foundation feeds the planned **text-to-speech** work.
+Built during the **CIF Tandem Fellowship** at **IfL-Phonetik, University of
+Cologne**, with the **Akademie för uns kölsche Sproch** as corpus partner.
 
-Each stage is a self-contained, Colab-ready notebook with its own README, so the
-pipeline can be run end-to-end, reused for another dialect, or cited stage by
-stage.
+> **Kölsch has no public speech dataset and no standardised spelling.** Against
+> the pretrained 152,766-word `german_mfa` dictionary, **94.1 % of Kölsch word
+> tokens are out of vocabulary** — the dialect is simply not German text. Every
+> design decision here follows from that.
 
-> **Tandem Fellowship.** A tandem pairs an incoming researcher with a local host
-> to build a shared, transferable resource. Here the shared resource is an
-> open, documented Kölsch speech-technology stack — usable by the IfL, the Royal
-> Academy of Cambodia's tooling work, and the wider low-resource phoneme-recognition and TTS
-> community.
+---
 
-> Source corpus: *Alles Kölsch* (Bhatt & Lindlar, 1998) — ~4 h of narrative
-> speech, 125 speakers across 49 Cologne neighbourhoods.
+## Contents
+
+| | |
+|---|---|
+| [Quick start](#quick-start) | get an alignment out of it in ten minutes |
+| [The pipeline](#the-pipeline) | nine notebooks, stage by stage |
+| [**Forced alignment — start with `vc`**](#forced-alignment--start-with-absorbvc) | the recommended setting, and why |
+| [Two recognition targets](#two-recognition-targets) | IPA phonemes vs orthography |
+| [OCR](#ocr-why-the-character-set-decides-everything) | why the character set decides the project |
+| [Where it ran and where it didn't](#where-it-ran-and-where-it-didnt) | honest test status |
+| [Data, rights and consent](#data-rights-and-consent) | what is in `data/` and whose it is |
+| [Install](#install) · [Layout](#repository-layout) · [Citation](#citation) | |
+
+---
+
+## Quick start
+
+```bash
+git clone https://github.com/chemvatho/Koelsch-Phoneme-Recognition.git
+cd Koelsch-Phoneme-Recognition
+pip install -r requirements.txt
+```
+
+Then run the notebooks in order. Stages 3 → 4 must run before 5, 7, 8 or 9,
+because stage 3 writes the segment manifest and stage 4 adds the phonetic
+columns to it.
+
+```
+3  segment   →  4  normalise  →  5  fine-tune  →  6  analyse
+                              →  8  orthography (w2v-BERT)
+                              →  9  forced alignment      ← start here if you
+                                                            already have a model
+```
+
+Model weights are **not** in this repository — the checkpoint is ~1.2 GB, well
+past what git should carry. Train your own in stage 5, or point
+`KOLSCH_MODEL` at a local directory or a Hugging Face repo id.
 
 ---
 
 ## The pipeline
 
 ```
- book + CDs ─► 1 OCR ─► 2 Corpus ─► 3 Segment ─► 4 Normalise ─► 5 Fine-tune ─► 6 Analyse ─► phonemes
+book + CDs ─► 1 OCR ─► 2 Corpus ─► 3 Segment ─► 4 Normalise ─┬─► 5 Fine-tune ─► 6 Analyse
+                                                             ├─► 7 Word-level
+                                                             ├─► 8 Orthography (w2v-BERT)
+                                                             └─► 9 Forced alignment
 ```
 
 | # | Stage | What it does | Notebook |
 |---|-------|--------------|----------|
 | 1 | **OCR** | Digitise the printed transcriptions (Tesseract → EasyOCR → **Gemini 2.5 Pro**) | [`01_ocr/`](01_ocr/01_ocr_digitisation.ipynb) |
-| 2 | **Corpus** | Token/type counts, speaker demographics, 44-phoneme distribution | [`02_corpus/`](02_corpus/02_corpus_statistics.ipynb) |
-| 3 | **Segment** | MMS forced alignment + 5-word / 10-word / **prosodic** segmentation | [`03_segmentation/`](03_segmentation/03_mms_segmentation.ipynb) |
-| 4 | **Normalise** | Phonological rules (a/b/c) + IPA phoneme tokeniser | [`04_normalisation/`](04_normalisation/04_phonological_normalisation.ipynb) |
-| 5 | **Fine-tune** | Wav2Vec2 XLS-R-300M + CTC head | [`05_finetune/`](05_finetune/05_wav2vec2_finetune.ipynb) |
-| 6 | **Analyse** | Test-set WER/CER + phoneme error analysis | [`06_analysis/`](06_analysis/06_error_analysis.ipynb) |
-| 7 | **Word-level** *(alt. target)* | IPA word-level & orthographic recognition | [`07_word_level/`](07_word_level/07_word_level_recognition.ipynb) |
-
-### Open in Colab
-- 1 OCR — https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/01_ocr/01_ocr_digitisation.ipynb
-- 2 Corpus — https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/02_corpus/02_corpus_statistics.ipynb
-- 3 Segment — https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/03_segmentation/03_mms_segmentation.ipynb
-- 4 Normalise — https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/04_normalisation/04_phonological_normalisation.ipynb
-- 5 Fine-tune — https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/05_finetune/05_wav2vec2_finetune.ipynb
-- 6 Analyse — https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/06_analysis/06_error_analysis.ipynb
-- 7 Word-level — https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/07_word_level/07_word_level_recognition.ipynb
-
-*(Replace `chemvatho/kolsch-tandem` with your own GitHub path once you push.)*
+| 2 | **Corpus** | Token/type counts, speaker demographics, phoneme distribution | [`02_corpus/`](02_corpus/02_corpus_statistics.ipynb) |
+| 3 | **Segment** | MMS forced alignment + fixed-window / **prosodic** segmentation | [`03_segmentation/`](03_segmentation/03_mms_segmentation.ipynb) |
+| 4 | **Normalise** | Phonological rules + IPA phoneme tokeniser, dictionary-first G2P | [`04_normalisation/`](04_normalisation/04_phonological_normalisation.ipynb) |
+| 5 | **Fine-tune** | Wav2Vec2 **XLS-R-300M** + CTC head → IPA phonemes | [`05_finetune/`](05_finetune/05_wav2vec2_finetune.ipynb) |
+| 6 | **Analyse** | Test-set PER/CER + phoneme error analysis | [`06_analysis/`](06_analysis/06_error_analysis.ipynb) |
+| 7 | **Word-level** | IPA word-level & orthographic recognition on XLS-R | [`07_word_level/`](07_word_level/07_word_level_recognition.ipynb) |
+| 8 | **Orthography** | **W2v-BERT 2.0** + CTC head → Kölsch spelling | [`08_orthography/`](08_orthography/08_w2vbert_orthography.ipynb) |
+| 9 | **Alignment** | Phone boundaries in time → Praat TextGrids | [`09_alignment/`](09_alignment/09_forced_alignment.ipynb) |
 
 ---
 
-## Recognition targets
+## Forced alignment — start with `absorb="vc"`
 
-Stages 1–4 are shared data preparation. From there, three recognition targets are
-available — all Wav2Vec2 XLS-R-300M + CTC, differing only in the label and vocab:
+**This is the recommended setting, and the one thing to read if you read nothing
+else.**
 
-| Target | Notebook | Unit | Tokenizer | Output | Metric |
-|--------|----------|------|-----------|--------|--------|
-| **Phonemes** (primary) | 5 | IPA phoneme | `Wav2Vec2PhonemeCTCTokenizer` | `d a t \| ə s ʊ` | WER/CER (phoneme-level) |
-| **IPA word-level** | 7 (`TARGET="ipa"`) | character | `Wav2Vec2CTCTokenizer` | `dat əsʊ` | WER/CER (word-level) |
-| **Orthographic** | 7 (`TARGET="orthography"`) | character | `Wav2Vec2CTCTokenizer` | `dat esu` | WER/CER (word-level) |
+CTC is **peaky**. The model emits one confident frame per phone and blanks in
+between, so the labelled frames cover only **14–21 %** of the timeline on the
+reference material (31 % on the shipped example). That means:
 
-The phoneme recogniser is the primary system. The word-level notebook is an
-alternative target: a single wrong character fails the whole word, so word-level
-WER sits above the phoneme error rate — expected, not a regression.
+> **Roughly four fifths of every phone duration in a CTC-derived TextGrid is not
+> measured. It is a rule deciding who gets the blank frames.**
+
+Which rule you pick therefore matters more than the model does — and the obvious
+rules are all wrong in the same way. They assume each CTC spike sits in the
+middle of its phone. It does not:
+
+| | spike sits … through its own segment |
+|---|---|
+| **vowels** | **71 %** — late |
+| **consonants** | **10 %** — early |
+
+*Measured against MFA over one recording and its two halves, n = 27 vowels /
+35 consonants. Unstable in detail — the consonant median is 29 % on the full file
+and 6 % on the chunks, because MFA re-segments each independently — but the
+direction is stable.*
+
+So the blank run between a consonant spike and the following vowel spike starts
+at the **beginning** of the consonant and ends **two thirds into** the vowel.
+Split it down the middle and the consonant eats half the vowel.
+
+![why the consonants grew](docs/figures/why_consonants_grew.png)
+
+That is exactly what happened: `/h/` in *høːt* came out **307 ms** where MFA said
+10 ms, and `/b/` in *bɛsɐ* took **197 ms** while its own vowel kept 42.
+
+### The four gap rules
+
+| mode | what happens to a blank run |
+|---|---|
+| `none` | nothing — phones keep only their labelled frames, and the TextGrid has holes |
+| `even` | split down the middle |
+| `hybrid` | cut at the **spectral-change peak** inside a word; posterior-weighted across word edges |
+| **`vc`** ← **use this** | word-internally, C→V and V→C runs go to the **vowel**; everything else as `hybrid` |
+
+![what vc changes](docs/figures/vc_vs_hybrid.png)
+
+Red arrows mark every internal boundary that moved. **Word onsets are untouched
+by construction**, so cross-system comparisons stay valid.
+
+### Does it help?
+
+Over **84 field recordings, 3,742 phones**:
+
+| | `hybrid` | `vc` |
+|---|---|---|
+| three-way spread, median | 72.9 ms | **67.4 ms** |
+| all three systems within 50 ms | 38.2 % | **41.4 %** |
+| wav2vec2 vs MFA, median \|Δ\| | 37.5 ms | **34.0 ms** |
+| wav2vec2 vs MAUS, median \|Δ\| | 49.6 ms | **43.7 ms** |
+
+**68 recordings improve, 15 get worse**, median change −3.0 ms. On material where
+the phone chain comes from a real manual transcription rather than a prompt text,
+the effect is larger: median three-way spread **55.0 → 42.9 ms**.
+
+**Read the per-class split before believing the headline.**
+
+| | change in three-way spread |
+|---|---|
+| diphthong | −13.5 ms |
+| vowel_long | −11.7 |
+| vowel_short | −7.5 |
+| affricate | −1.5 |
+| plosive | +0.8 |
+| fricative | +1.1 |
+| approximant | +1.8 |
+| nasal | +2.1 |
+
+Every vocalic class improves; every consonantal class is flat or very slightly
+worse. Vowels gain more than consonants lose, so the total moves the right way —
+but **"vc is better" is a net claim, not a uniform one.**
+
+### Comparing against MFA and MAUS
+
+![three aligners on one chain](docs/figures/three_aligners.png)
+
+Give all three systems the **same phone chain**, or you are measuring three
+pronunciation dictionaries rather than three aligners. Notebook 9 documents both;
+neither runs by default.
+
+- **MFA** — Montreal Forced Aligner 2.2.17 + `german_mfa`. Runs entirely offline.
+  Expect the 94.1 % OOV rate unless you supply a Kölsch lexicon.
+- **MAUS** — the BAS webservice, `deu-DE`. **This uploads your audio.** It is an
+  academic service in Munich, not a commercial one, but the recordings still
+  leave your machine. That was an acceptable trade here for a comparison
+  baseline; for recordings your speakers did not consent to share, it is not.
+  Everything else in this repository runs locally.
+
+**These are agreement figures, not accuracy figures.** With no hand-corrected
+reference, "which aligner is right" is not answerable. The three-way spread says
+how far apart the systems place the same boundary; the median-of-three leans
+toward MFA and MAUS, which share an HMM-GMM lineage, so a wav2vec2-specific
+improvement is *understated* by it.
+
+Against the only human-placed boundaries available — three edges of two
+hand-cut excerpts — wav2vec2 sat **7.2 ms** away on average, MFA 123.7 ms and
+MAUS 80.8 ms. **Three boundaries from one speaker is an anecdote, not a result.**
+It is reported because it points the same way as the 84-recording comparison, not
+as evidence on its own.
 
 ---
 
-## Example data & scaling to many files
+## Two recognition targets
 
-Every notebook is **global**: it iterates the registry `data/index.csv` (one row
-per recording) and globs `data/pages/*.png` / `data/audio/*.wav`. Nothing is
-hard-coded to a single file.
+Stages 1–4 are shared. From there the corpus feeds two different products:
 
-The repo ships **one worked example** — `page_1.png` (a scanned page) and
-`track1_mono.wav` (its audio), which are the same recording: CD 1 / 01,
-*"Tee mit Schuss"*, speaker Aldorf Klaus (51, Altstadt-Süd). It flows through
-all stages: OCR the page → corpus stats → forced-align the audio to the text →
-segment → phonemise → train → analyse.
+| | **stage 5 — phonemes** | **stage 8 — orthography** |
+|---|---|---|
+| encoder | XLS-R-300M (~315M) | **w2v-BERT 2.0** (~580M) |
+| input | raw waveform | 80-bin log-mel, stride 2 |
+| target | IPA phoneme (48 symbols) | Kölsch grapheme |
+| output | `d a t \| ə s ʊ` | `dat esu` |
+| headline metric | **PER** | **CER** |
 
-**To scale up:** drop more scans in `data/pages/`, more recordings in
-`data/audio/`, add a row per recording to `data/index.csv` — every notebook then
-processes them all. See [`data/README.md`](data/README.md).
+**They are different products, not competing runs.** Use phonemes for anything
+needing a phone inventory — TTS, alignment, dialectometry — and orthography when
+you want text a Kölsch reader can read.
 
-```
-data/
-├── index.csv          registry (id, page_image, audio, transcript, speaker, metadata)
-├── pages/*.png        scanned pages     -> 1 OCR
-├── audio/*.wav        recordings        -> 3 Segmentation
-├── transcripts/*.txt  OCR output        -> 2 Corpus, 3 Segmentation
-├── segments/          clips + manifest  -> 4 Normalise, 5 Fine-tune, 6/7
-└── lexicon.csv        Kölsch orthography→IPA dictionary (kolsch, ipa, frequency)
-```
+Two things to know before comparing them:
 
-**Orthography ↔ IPA.** `kolsch_g2p.py` is the rule-based Kölsch
-G2P; `data/lexicon.csv` is the pronunciation dictionary it generates. Notebook 4
-phonemises text dictionary-first, converter-for-OOV.
+1. **W2v-BERT gets no German warm-start.** `facebook/w2v-bert-2.0` is a raw
+   pretrained checkpoint with no CTC head, so `lm_head` *and* the conv adapter
+   initialise randomly. The stronger multilingual pretraining has to pay for
+   that. Do not assume the bigger model wins — measure it.
+2. **CER is the headline for orthography, not WER.** With no spelling standard,
+   *janz*/*ganz* and *zusamme*/*zosamme* are one word spelled two ways. WER
+   charges full price. Notebook 8 also reports a scoring-only variant folding
+   *alongside* the raw numbers — never instead of them.
 
----
-
-## Results
-
-On the held-out test set (467 utterances, 17,455 reference phonemes), the
-fine-tuned **Wav2Vec2 XLS-R-300M** reaches:
-
-| Metric | Test |
-|--------|------|
-| **WER** (over phoneme tokens) | **14.63 %** |
-| **CER** (over the IPA stream) | **11.75 %** |
-
-Best validation checkpoint: 15.2 % WER / 11.8 % CER (selected on validation WER,
-not loss). Error composition: 1,252 substitutions, 877 deletions, 425
-insertions. For context, an off-the-shelf multilingual Wav2Vec2Phoneme scores
-~33 % PER on comparable German-dialect material (Xu et al., 2022) — this
-dialect-specific fine-tune more than halves that.
-
-WER and CER are the metrics logged during training; because the target is a
-phoneme sequence, this WER is a phoneme-token error rate (equivalent to PER).
+Reference run for the phoneme model: **PER 16.4 %**, 23,400 steps / 200 epochs in
+9 h 32 m on roughly four hours of audio. Validation loss bottoms out at step
+6,000 and climbs to 0.82 by the end while PER keeps falling — **select the
+checkpoint on error rate, not on loss.**
 
 ---
 
-## Roadmap
+## OCR: why the character set decides everything
 
-- [x] **Stage 1 — Phoneme recognition.** OCR → corpus → segmentation → normalisation → XLS-R-300M
-      fine-tune → error analysis (this repo).
-- [ ] **Stage 2 — TTS.** Reuse the aligned, phoneme-normalised corpus to train a
-      Kölsch text-to-speech voice.
-- [ ] **Shared resources.** Publish the pronunciation dictionary and the
-      fine-tuned checkpoints for public use.
+![the OCR pipeline](docs/figures/ocr_pipeline.png)
+
+A classical OCR engine can only output a character that is **in its character
+set**. A glyph it does not know is not flagged — it is silently replaced by the
+nearest one it does know.
+
+That single fact decided the project. *Alles Kölsch* ships two versions of every
+text: a quasi-orthographic one in standard German letters, and a phonetic one in
+Rheinische Dokumenta. The phonetic version is the linguistically richer source
+and the one OCR destroys, because its diacritics are exactly the characters no
+German-trained engine has.
+
+![why the phonetic route failed](docs/figures/ocr_why_fails.png)
+
+Three engines were compared. **Tesseract** and **EasyOCR** both dropped the
+elision apostrophes (`d'r`, `m'r`) and mangled the diacritics; **Gemini 2.5 Pro**,
+prompted page by page, was selected — and **every page was then proofread against
+the scan by a human**. OCR output is never taken as final.
 
 ---
 
-## Quickstart
+## Where it ran and where it didn't
+
+Every notebook was executed in a clean kernel on this machine
+(Python 3.12, torch 2.13 + CUDA, transformers 5.14.1, one NVIDIA GB10) using
+[`tools/run_notebook.py`](tools/run_notebook.py). Status as tested:
+
+| notebook | status | time | note |
+|---|---|---|---|
+| 2 · Corpus | **pass** | 2 s | |
+| 3 · Segment | **pass** | 14 s | downloads MMS_FA, writes 55 segments |
+| 4 · Normalise | **pass** | 4 s | must run *after* 3 — stage 3 rewrites the manifest |
+| 5 · Fine-tune | **pass** | 812 s | full 150-epoch run on the example |
+| 6 · Analyse | **pass** | 21 s | |
+| 7 · Word-level | **pass** | 635 s | |
+| 8 · Orthography | **pass** | 35 s | smoke run (`KOLSCH_SMOKE=1`), 2 optimiser steps, downloads w2v-BERT 2.0 |
+| 9 · Alignment | **pass** | 31 s | 55 TextGrids written |
+| 1 · OCR | **not run** | — | needs the Tesseract **binary** and a `GEMINI_API_KEY`; neither is available in a headless test |
+
+Three real bugs surfaced and were fixed rather than worked around:
+
+- **`group_by_length` was removed in transformers 5.0**, so stage 5 raised
+  `TypeError` on any current install. The cell now filters its kwargs against
+  `TrainingArguments`' actual signature and prints what it dropped — one notebook
+  that works on both 4.x and 5.x, instead of a version pin that will rot.
+- **Stage 6's confusion plot crashed when there were no substitutions**
+  (`M.max()` on a 0×0 array raises rather than returning 0). It now says so and
+  returns.
+- **`opencv-python` was missing from `requirements.txt`** although stage 1
+  imports `cv2`. Added, along with `scikit-learn` and a note that the Tesseract
+  binary cannot come from pip.
+
+**On the shipped example, training notebooks prove the wiring, not the model.**
+`data/` holds one recording by one speaker, so there is nothing to hold out: the
+split falls back to random, train and test share a voice, and any score is
+memorisation. Both notebook 8 and notebook 7 say so at runtime. Scale `data/` up
+before believing a number.
+
+Notebook 9's demo on that example measured CTC covering **31 %** of the span and
+`vc` moving vowels **+15.8 ms** and consonants **−6.9 ms** on average — the
+expected direction, on 33 phones.
+
+---
+
+## Data, rights and consent
+
+`data/` ships **one worked example** so the pipeline runs out of the box:
+
+| file | what it is |
+|---|---|
+| `pages/page_1.png` | scan of the printed transcription page |
+| `audio/track1_mono.wav` | CD 1, track 01 — 2.8 min, *"Tee mit Schuss"* |
+| `transcripts/page_1.txt` | the OCR output for that page, human-proofread |
+| `index.csv` | one row per recording, with the book's own speaker metadata |
+| `lexicon.csv` | Kölsch orthography → IPA, generated by `kolsch_g2p.py` |
+
+**Source and rights.** The page and the audio are from *Alles Kölsch*
+(Bhatt & Lindlar, 1998), published by the **Akademie för uns kölsche Sproch**,
+which holds the rights. They are reproduced here as a single worked example under
+the project's arrangement with the Akademie — **not** released under this
+repository's MIT licence, which covers the code only. If you want to redistribute
+them, ask the Akademie.
+
+**Speaker metadata.** `index.csv` carries the speaker's name, age, occupation and
+neighbourhood. These are reproduced from the book's own published speaker table,
+where they have been in print since 1998; nothing here discloses more than the
+publication does. If you extend `data/` with recordings that are *not* already
+published, do not copy this pattern — use an opaque speaker id.
+
+**Everything downstream runs locally.** The recogniser is fine-tuned in-house,
+alignment runs offline, and audio, lexicon, phone inventory and TextGrids never
+leave your machine. The two exceptions are opt-in and named as such: Gemini reads
+the **printed page** in notebook 1, and MAUS is an **optional** comparison
+baseline in notebook 9. A workable rule: *published text may travel; speaker
+recordings should not.*
+
+---
+
+## Install
 
 ```bash
-git clone https://github.com/chemvatho/kolsch-tandem.git
-cd kolsch-tandem
 pip install -r requirements.txt
 ```
 
-Then open any notebook in Jupyter or click its Colab badge.
+Notebook 1 additionally needs the Tesseract **binary**, which pip cannot install:
 
-### Running it anywhere (VS Code · Jupyter · Colab)
-
-Every notebook starts with a **portable setup cell** that finds the repo root
-(via `kolsch_paths.py`) and defines absolute paths — so the same notebook runs
-unchanged whether your working directory is the repo root (Jupyter), a stage
-subfolder (VS Code), or `/content` (Colab). All CSV / image / audio / model
-paths come from `kolsch_paths.py`:
-
-```python
-from kolsch_paths import ROOT, DATA, PAGES, AUDIO, TRANS, SEG, INDEX, LEXICON, MODELS
+```bash
+apt-get install tesseract-ocr tesseract-ocr-deu     # Debian/Ubuntu
+brew install tesseract tesseract-lang               # macOS
 ```
 
-On **Colab** the setup cell clones the repo automatically (edit the URL to your
-fork), or mount Google Drive and point `kolsch_paths.ROOT` at your folder.
-Never hard-code `data/...` — always use these variables.
- Stages are
-independent: each reads the previous stage's output (described in its README)
-and you can start from whichever stage you have data for.
+and a Gemini key in the environment:
 
-**Data flow between stages**
+```bash
+export GEMINI_API_KEY=...        # never commit this
+```
 
+Notebook 9 needs a trained checkpoint:
+
+```bash
+export KOLSCH_MODEL=/path/to/models/kolsch_wav2vec2_model_all
+export KOLSCH_PROCESSOR=/path/to/processor      # defaults to KOLSCH_MODEL
 ```
-scans ─►[1]─► ocr_txt/  ─►[2]─► statistics
-                         └►[3]─► segments/ + manifest.csv ─┐
-ipa  ──────────────────►[4]─► phonetic labels ────────────┤
-                                                           ▼
-                                          [5]─► model ─►[6]─► WER/CER + figures
-```
+
+Every notebook locates the repository root from `kolsch_paths.py`, so it runs
+identically in VS Code, Jupyter and Colab regardless of the working directory.
 
 ---
 
-## Data & licence
+## Repository layout
 
-- **Code:** MIT (see [`LICENSE`](LICENSE)).
-- **Corpus:** the *Alles Kölsch* (Bhatt & Lindlar, 1998) text and audio are
-  copyrighted by the rights holder and are **not** distributed here. You need
-  your own licensed copy to reproduce the data stages. The notebooks contain
-  small demo stubs so they run without the private corpus.
+```
+01_ocr/ … 09_alignment/     one notebook + README per stage
+data/                       the worked example (see rights above)
+docs/figures/               figures used by this README
+tools/run_notebook.py       executes a notebook and reports where it stops
+kolsch_g2p.py               rule-based Kölsch grapheme→phoneme converter
+kolsch_paths.py             single source of truth for paths
+requirements.txt
+```
+
+`models/` is generated and git-ignored. Publish checkpoints to the Hugging Face
+Hub rather than committing them — the phoneme model alone is 1.2 GB.
+
+---
 
 ## Citation
 
 ```bibtex
-@misc{chem2026kolschtandem,
-  title  = {K\"olsch Tandem Project: dialect speech technology from print to phonemes},
-  author = {Chem, Vatho and R\"ossig, Simon and Greisbach, Reinhold},
+@misc{chem2026koelsch,
+  author = {Chem, Vatho and Greisbach, Reinhold},
+  title  = {Kölsch Phoneme Recognition: an open pipeline from a printed
+            dialect corpus to phoneme recognition and forced alignment},
   year   = {2026},
-  note   = {CIF Tandem Fellowship, IfL-Phonetik, University of Cologne},
-  howpublished = {\url{https://github.com/chemvatho/kolsch-tandem}}
+  url    = {https://github.com/chemvatho/Koelsch-Phoneme-Recognition}
 }
 ```
 
+Corpus: Bhatt, C. & Lindlar, M. (1998). *Alles Kölsch: eine Dokumentation der
+heutigen Sprache in Köln*. Akademie för uns kölsche Sproch.
+
+## Licence
+
+**MIT** for the code and notebooks. **Not** for `data/` — see
+[Data, rights and consent](#data-rights-and-consent).
+
 ## Acknowledgements
 
-Developed under the **CIF Tandem Fellowship** at IfL-Phonetik, University of
-Cologne, in tandem with **Simon Rössig**. With thanks to Martine Grice,
-Constantijn Kaland, and Reinhold Greisbach (co-author of the phoneme-recognition
-study). Built on Meta AI's Wav2Vec2 / XLS-R and MMS, and Hugging Face
-Transformers.
+CIF Tandem Fellowship · IfL-Phonetik, Universität zu Köln · Akademie för uns
+kölsche Sproch · Reinhold Greisbach.

@@ -1,6 +1,6 @@
 # 3 · Audio segmentation & forced alignment (MMS)
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/kolsch-tandem/blob/main/03_segmentation/03_mms_segmentation.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/Koelsch-Phoneme-Recognition/blob/main/03_segmentation/03_mms_segmentation.ipynb)
 
 Aligns 2–5-minute Kölsch narratives to their transcripts with **Meta's MMS
 forced aligner**, then cuts them into trainable utterances using three
