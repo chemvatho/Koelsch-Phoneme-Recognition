@@ -15,6 +15,15 @@ partner.
 > tokens are out of vocabulary** — the dialect is simply not German text. Every
 > design decision here follows from that.
 
+> **Tandem Fellowship.** A tandem pairs an incoming researcher with a local host
+> to build a shared, transferable resource. Here that resource is an open,
+> documented Kölsch speech-technology stack — usable by the IfL, by the Royal
+> Academy of Cambodia's tooling work, and by the wider low-resource
+> phoneme-recognition and TTS community.
+
+> **Source corpus:** *Alles Kölsch* (Bhatt & Lindlar, 1998) — ~4 h of narrative
+> speech, 125 speakers across 49 Cologne neighbourhoods.
+
 ---
 
 ## Contents
