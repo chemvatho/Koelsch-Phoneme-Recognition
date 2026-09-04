@@ -283,9 +283,22 @@ but **"vc is better" is a net claim, not a uniform one.**
 
 ![three aligners on one chain](docs/figures/three_aligners.png)
 
-Give all three systems the **same phone chain**, or you are measuring three
-pronunciation dictionaries rather than three aligners. Notebook 9 documents both;
-neither runs by default.
+Four rows, three aligners — wav2vec2 appears twice because the gap rule changes
+what it can express. Give all of them the **same phone chain**, or you are
+measuring three pronunciation dictionaries rather than three aligners.
+
+**Look at where the rows have holes.** MFA and MAUS model silence explicitly, so
+a pause is an interval belonging to nobody. `vc` cannot say "silence" at all — its
+phones tile the signal end to end, so every pause is inside whichever phone
+happens to border it. `vc-sil` leaves the pauses unlabelled, and its holes line up
+with the other two. **That is what makes its row structurally comparable to
+theirs**; `vc`'s row is not, however close its boundaries land.
+
+This matters for more than tidiness. A phone that swallows a 620 ms pause is
+wrong as annotation whatever the boundary metric says — see the *ʃnaɪə* schwa
+above, 800 ms under `vc-onset` against MFA's 160.
+
+Neither MFA nor MAUS runs by default; notebook 9 documents both.
 
 - **MFA** — Montreal Forced Aligner 2.2.17 + `german_mfa`. Runs entirely offline.
   Expect the 94.1 % OOV rate unless you supply a Kölsch lexicon.
@@ -299,13 +312,18 @@ neither runs by default.
 reference, "which aligner is right" is not answerable. The three-way spread says
 how far apart the systems place the same boundary; the median-of-three leans
 toward MFA and MAUS, which share an HMM-GMM lineage, so a wav2vec2-specific
-improvement is *understated* by it.
+improvement is *understated* by it — and a change that merely makes wav2vec2
+behave more like those two is *overstated*. Both distortions are live here:
+`vc-sil` gains on the 941-boundary comparison and loses on the human edges, and
+you cannot tell from these numbers alone how much of that gain is accuracy and
+how much is conformity.
 
-Against the only human-placed boundaries available — three edges of two
-hand-cut excerpts — `vc` sat **7.2 ms** away on average, MAUS 80.8 ms and MFA
-123.7 ms. **Three boundaries from one speaker is an anecdote, not a result**, and
-see the caveat above for the case where it and the 84-recording comparison point
-in opposite directions.
+Against the only human-placed boundaries available — three edges of two hand-cut
+excerpts — `vc` sat **7.2 ms** away on average, `vc-sil` 62.0, MAUS 80.8 and MFA
+123.7. **Three boundaries from one speaker is an anecdote, not a result**, and it
+points the opposite way from the 84-recording comparison. Getting past that
+standoff needs a hand-corrected reference, which is the top
+[Roadmap](#roadmap) item.
 
 ---
 
