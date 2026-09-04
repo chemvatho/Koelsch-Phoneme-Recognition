@@ -86,6 +86,7 @@ book + CDs ─► 1 OCR ─► 2 Corpus ─► 3 Segment ─► 4 Normalise ─�
 | 7 | **Word-level** | IPA word-level & orthographic recognition on XLS-R | [`07_word_level/`](07_word_level/07_word_level_recognition.ipynb) |
 | 8 | **Orthography** | **W2v-BERT 2.0** + CTC head → Kölsch spelling | [`08_orthography/`](08_orthography/08_w2vbert_orthography.ipynb) |
 | 9 | **Alignment** | Phone boundaries in time → Praat TextGrids | [`09_alignment/`](09_alignment/09_forced_alignment.ipynb) |
+| 9b | **Gap rules** | All seven rules measured on your own data | [`09_alignment/`](09_alignment/09b_gap_rules_compared.ipynb) |
 
 ---
 
@@ -225,6 +226,12 @@ want one of the two, take `vc-sil`.
 > **Three boundaries from one speaker is an anecdote**, and 941 boundaries
 > against two related systems is not ground truth either. They disagree, and
 > neither settles it.
+
+**[Notebook 9b](09_alignment/09b_gap_rules_compared.ipynb) runs all seven rules
+on your own data** and measures the three things that need no reference — how
+much of the TextGrid is invented, where each rule puts the blank run, and whether
+phones swallow the pauses — plus a reference comparison that activates if you
+supply TextGrids from MFA, MAUS or a human.
 
 So **`vc` stays the default**, and `vc-sil` is there for when you want a TextGrid
 whose phones do not span pauses — which for TTS training data or for anything a
@@ -527,6 +534,7 @@ identically in VS Code, Jupyter and Colab regardless of the working directory.
 data/                       the worked example (see rights above)
 docs/figures/               figures used by this README
 tools/run_notebook.py       executes a notebook and reports where it stops
+kolsch_align.py             the aligner and all seven gap rules, in one place
 kolsch_g2p.py               rule-based Kölsch grapheme→phoneme converter
 kolsch_paths.py             single source of truth for paths
 requirements.txt

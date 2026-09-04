@@ -1,5 +1,14 @@
 # 9 · Forced alignment — phone boundaries in time
 
+Two notebooks:
+
+| | | |
+|---|---|---|
+| **9** | [`09_forced_alignment.ipynb`](09_forced_alignment.ipynb) | produce TextGrids |
+| **9b** | [`09b_gap_rules_compared.ipynb`](09b_gap_rules_compared.ipynb) | decide which gap rule to trust, measured |
+
+Both import `kolsch_align.py` at the repo root, so the rules are implemented once and the two notebooks cannot drift apart.
+
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/Koelsch-Phoneme-Recognition/blob/main/09_alignment/09_forced_alignment.ipynb)
 
 Stage 6 says **what** was said; this says **when** each phone starts and ends.
