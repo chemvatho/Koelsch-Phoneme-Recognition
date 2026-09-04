@@ -29,10 +29,13 @@ row per recording to `index.csv`. Every notebook iterates over `index.csv`.
 
 `pages/page_1.png` and `audio/track1_mono.wav` are from ***Alles Kölsch***
 (Bhatt & Lindlar, 1998), published by the **Akademie för uns kölsche Sproch**,
-which holds the rights. They are included here as a single worked example under
-this project's arrangement with the Akademie. **The repository's MIT licence
-covers the code, not this folder.** To redistribute the page or the audio, ask
-the Akademie.
+which holds the rights. One page and one track are included as a worked example
+so the pipeline runs out of the box.
+
+**The repository's MIT licence covers the code, not this folder.** Nothing here
+grants you a licence to the corpus. To use or redistribute the page or the
+audio — or to obtain the full corpus, which is not published here — contact the
+Akademie för uns kölsche Sproch.
 
 The speaker's name, age, occupation and neighbourhood in `index.csv` are
 reproduced from the book's own published speaker table — in print since 1998, so

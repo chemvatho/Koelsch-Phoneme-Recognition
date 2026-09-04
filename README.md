@@ -6,7 +6,9 @@ fine-tuned phoneme recogniser, an orthographic recogniser, and phone-level
 forced alignments.
 
 Built during the **CIF Tandem Fellowship** at **IfL-Phonetik, University of
-Cologne**, with the **Akademie för uns kölsche Sproch** as corpus partner.
+Cologne**, in tandem with **Jun.-Prof. Dr. Simon Rössig** and **Prof. Dr.
+Reinhold Greisbach**, with the **Akademie för uns kölsche Sproch** as corpus
+partner.
 
 > **Kölsch has no public speech dataset and no standardised spelling.** Against
 > the pretrained 152,766-word `german_mfa` dictionary, **94.1 % of Kölsch word
@@ -216,10 +218,35 @@ Two things to know before comparing them:
    charges full price. Notebook 8 also reports a scoring-only variant folding
    *alongside* the raw numbers — never instead of them.
 
-Reference run for the phoneme model: **PER 16.4 %**, 23,400 steps / 200 epochs in
-9 h 32 m on roughly four hours of audio. Validation loss bottoms out at step
-6,000 and climbs to 0.82 by the end while PER keeps falling — **select the
-checkpoint on error rate, not on loss.**
+### Results — phoneme model
+
+Held-out test set, **467 utterances / 17,455 reference phonemes**:
+
+| metric | test |
+|---|---|
+| **WER** (over phoneme tokens — i.e. PER) | **14.63 %** |
+| **CER** (over the IPA stream) | **11.75 %** |
+
+Best validation checkpoint 15.2 % WER / 11.8 % CER. Error composition: 1,252
+substitutions, 877 deletions, 425 insertions. For context, an off-the-shelf
+multilingual Wav2Vec2Phoneme scores ~33 % PER on comparable German-dialect
+material (Xu et al., 2022) — this dialect-specific fine-tune more than halves
+that.
+
+Training cost roughly 23,400 steps / 200 epochs in 9 h 32 m on four hours of
+audio. **Validation loss bottoms out around step 6,000 and then climbs while the
+error rate keeps falling** — select the checkpoint on error rate, not on loss.
+
+### Roadmap
+
+- [x] **Stage 1 — phoneme recognition.** OCR → corpus → segmentation →
+      normalisation → XLS-R-300M fine-tune → error analysis.
+- [x] **Stage 2 — orthography and alignment.** W2v-BERT 2.0 grapheme model
+      (notebook 8) and phone-level forced alignment (notebook 9).
+- [ ] **Stage 3 — TTS.** Reuse the aligned, phoneme-normalised corpus to train a
+      Kölsch text-to-speech voice.
+- [ ] **Shared resources.** Publish the pronunciation dictionary and the
+      fine-tuned checkpoints to the Hugging Face Hub.
 
 ---
 
@@ -303,10 +330,13 @@ expected direction, on 33 phones.
 
 **Source and rights.** The page and the audio are from *Alles Kölsch*
 (Bhatt & Lindlar, 1998), published by the **Akademie för uns kölsche Sproch**,
-which holds the rights. They are reproduced here as a single worked example under
-the project's arrangement with the Akademie — **not** released under this
-repository's MIT licence, which covers the code only. If you want to redistribute
-them, ask the Akademie.
+which holds the rights. One page and one track are included as a worked example
+so the pipeline runs out of the box.
+
+> **They are excluded from this repository's MIT licence, which covers the code
+> only.** Nothing here grants you a licence to the corpus. To use or
+> redistribute the page or the audio — or to obtain the full corpus, which is
+> not published here — contact the Akademie för uns kölsche Sproch.
 
 **Speaker metadata.** `index.csv` carries the speaker's name, age, occupation and
 neighbourhood. These are reproduced from the book's own published speaker table,
@@ -375,11 +405,12 @@ Hub rather than committing them — the phoneme model alone is 1.2 GB.
 
 ```bibtex
 @misc{chem2026koelsch,
-  author = {Chem, Vatho and Greisbach, Reinhold},
-  title  = {Kölsch Phoneme Recognition: an open pipeline from a printed
+  author = {Chem, Vatho and R\"ossig, Simon and Greisbach, Reinhold},
+  title  = {K\"olsch Phoneme Recognition: an open pipeline from a printed
             dialect corpus to phoneme recognition and forced alignment},
   year   = {2026},
-  url    = {https://github.com/chemvatho/Koelsch-Phoneme-Recognition}
+  note   = {CIF Tandem Fellowship, IfL-Phonetik, University of Cologne},
+  howpublished = {\url{https://github.com/chemvatho/Koelsch-Phoneme-Recognition}}
 }
 ```
 
@@ -393,5 +424,9 @@ heutigen Sprache in Köln*. Akademie för uns kölsche Sproch.
 
 ## Acknowledgements
 
-CIF Tandem Fellowship · IfL-Phonetik, Universität zu Köln · Akademie för uns
-kölsche Sproch · Reinhold Greisbach.
+Developed under the **CIF Tandem Fellowship** at IfL-Phonetik, University of
+Cologne, in tandem with **Simon Rössig**. With thanks to **Martine Grice**,
+**Constantijn Kaland**, and **Reinhold Greisbach** (co-author of the
+phoneme-recognition study), and to the **Akademie för uns kölsche Sproch** as
+corpus partner. Built on Meta AI's Wav2Vec2 / XLS-R / w2v-BERT and MMS, and
+Hugging Face Transformers.
