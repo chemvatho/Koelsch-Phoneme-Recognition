@@ -138,7 +138,8 @@ kept 42.
 | `even` | split down the middle |
 | `hybrid` | cut at the **spectral-change peak** inside a word; posterior-weighted across word edges |
 | **`vc`** ← **use this** | word-internally, C→V and V→C runs go to the **vowel**; everything else as `hybrid` |
-| `vc-onset` | `vc`, plus word boundaries at the end of the pause — **see the caveat below** |
+| `vc-onset` | `vc`, plus word boundaries at the end of the pause |
+| `vc-sil` | `vc-onset`, **plus explicit silence** — supersedes it; see the caveat below |
 
 ![what vc changes](docs/figures/vc_vs_hybrid.png)
 
@@ -172,58 +173,66 @@ This also explains the vowel. `vc` gives *øː* 240 ms against MFA's 290, but it
 short at its **left** edge, because the `/h/` in front of it starts too early.
 One cause, two symptoms.
 
-### `vc-onset`, and why it is not the default
+### `vc-onset` and `vc-sil`, and why neither is the default
 
 Placing a word onset is a different problem. Inside a word you decide which of
 two phones owns a blank run. Across a word boundary the gap usually **contains a
 real pause**, and the question is where the next word starts — which the energy
-answers directly and the CTC posteriors do not. MFA and MAUS get this for free by
-modelling silence explicitly.
+answers directly and the CTC posteriors do not.
 
-`vc-onset` keeps `vc` word-internally and puts each word-boundary gap at **the
-end of its silence**. Measured on **941 word-initial onsets across the 84 helga
-recordings**, against both references independently, it is a clear win:
+`vc-onset` puts each word-boundary gap at the end of its silence. That fixes the
+onset and leaves a worse bug behind: **the pause ends up inside the previous
+phone.** On *wenker2* the final schwa of *ʃnaɪə* came out **800 ms** against
+MFA's 160, because the 620 ms MFA labels as silence had nowhere else to go.
 
-| | vs MFA | vs MAUS |
-|---|---|---|
-| word-initial onset, `vc` | 62.2 ms | 72.9 ms |
-| word-initial onset, **`vc-onset`** | **42.5 ms** | **42.9 ms** |
-| word-final offset, `vc` | 57.4 ms | 71.8 ms |
-| word-final offset, **`vc-onset`** | **55.0 ms** | **57.1 ms** |
+`vc-sil` fixes that properly. A word boundary is not one event but three — the
+previous word ends, there is silence, the next word begins — so it ends the
+previous phone at the **start** of the pause and begins the next at its **end**,
+leaving a real hole that the TextGrid renders as an empty interval. That is what
+MFA and MAUS do. The schwa drops from 800 ms to **245**.
 
-On the `/h/` of *høːt* the onset moves from 0.341 s to **0.455** against MFA's
-0.460 — 5 ms out, from 119.
+Over **941 word boundaries on the 84 helga recordings**, against both references:
 
-> ### And yet it is worse against the only human boundaries we have
+| median \|Δ\| | onset vs MFA | end vs MFA | onset vs MAUS | end vs MAUS |
+|---|---|---|---|---|
+| `vc` | 62.1 ms | 57.2 ms | 73.9 ms | 70.3 ms |
+| `vc-onset` | **40.0** | 55.0 | **45.4** | 55.4 |
+| **`vc-sil`** | **40.0** | **50.0** | **45.4** | **52.9** |
+
+Median silence emitted per recording: `vc` and `vc-onset` **0 ms**, `vc-sil`
+250, MAUS 100, MFA 415. **`vc-sil` dominates `vc-onset` everywhere** — if you
+want one of the two, take `vc-sil`.
+
+> ### And yet both lose against the only human boundaries we have
 >
-> Two hand-cut excerpts give three speech-flanked edges that a person placed in
-> Praat. Mean distance to the nearest system boundary:
+> Two hand-cut excerpts give three speech-flanked edges a person placed in Praat.
+> Mean distance to the nearest system boundary:
 >
 > | | mean | dann offset | wööd onset | wööd offset |
 > |---|---|---|---|---|
 > | **`vc`** | **7.2 ms** | 3.2 | 6.8 | 11.7 |
-> | `vc-onset` | 62.0 ms | 36.0 | 26.0 | 124.0 |
-> | MFA | 123.7 ms | 121.0 | 111.0 | 139.0 |
+> | `vc-onset` / `vc-sil` | 62.0 ms | 36.0 | 26.0 | 124.0 |
 > | MAUS | 80.8 ms | 78.1 | 68.1 | 96.1 |
+> | MFA | 123.7 ms | 121.0 | 111.0 | 139.0 |
 >
 > ![the hand-cut excerpt edges](docs/figures/handcut_excerpts.png)
 >
-> `vc-onset` moves *towards MFA and MAUS and away from the human*. The obvious
-> reading is that it is imitating a convention those two share — they have a
-> common HMM-GMM lineage, and both put a boundary at the edge of a silence
-> interval — rather than getting closer to the truth. Agreement with them is not
-> the same as accuracy, and this is the clearest evidence in the repository that
-> the difference matters.
+> The onset-aware modes move *towards MFA and MAUS and away from the human*. The
+> obvious reading is that they are learning a convention those two share — common
+> HMM-GMM lineage, both put a boundary at the edge of a silence interval — rather
+> than getting closer to the truth. Agreement with them is not accuracy.
 >
 > **Three boundaries from one speaker is an anecdote**, and 941 boundaries
-> against two related systems is not ground truth either. The two pieces of
-> evidence genuinely disagree and neither settles it.
+> against two related systems is not ground truth either. They disagree, and
+> neither settles it.
 
-So `vc` stays the default, `vc-onset` is available, and the question is open
-until there is a hand-corrected reference. That is why one sits at the top of the
+So **`vc` stays the default**, and `vc-sil` is there for when you want a TextGrid
+whose phones do not span pauses — which for TTS training data or for anything a
+phonetician will open in Praat is usually what you want. The question is open
+until there is a hand-corrected reference, which is why one heads the
 [Roadmap](#roadmap).
 
-### What neither of them fixes
+### What none of them fixes
 
 The boundary *between* a consonant and the vowel after it. `/h/` still ends at
 0.522 s where MFA ends it at 0.470, so *øː* stays 241 ms against MFA's 290. The

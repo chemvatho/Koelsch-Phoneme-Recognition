@@ -27,17 +27,39 @@ untouched by construction, so cross-system comparisons stay valid.
 | `even` | split down the middle |
 | `hybrid` | the spectral-change peak inside a word |
 | `vc` | the **vowel**, at C→V and V→C; otherwise as `hybrid` |
-| **`vc-onset`** | `vc`, plus word boundaries at the end of the pause |
+| `vc-onset` | `vc`, plus word boundaries at the end of the pause |
+| **`vc-sil`** | `vc-onset` **plus explicit silence** — supersedes it |
 
 `vc` leaves word-boundary gaps alone, and that is where the error concentrates:
-word-internal onsets sit 11.7 ms from MFA, word-initial ones 113.0. A word
-boundary is a different question — where does speech resume after a pause — and
-the energy answers it directly. Over **941 word-initial onsets on the 84 helga
-recordings**, `vc-onset` cuts that error from 62.2 to **42.5 ms** against MFA and
-72.9 to **42.9** against MAUS, leaving word-internal boundaries untouched.
+word-internal onsets sit 11.7 ms from MFA, word-initial ones 113.0.
 
-Applying the vowel rule at word onsets instead was tried and rejected: better on
-one recording, *worse than doing nothing* on helga. It was fitting one speaker.
+A word boundary is not one event but three — the previous word ends, there is
+silence, the next word begins. `vc-onset` cuts once at the end of the pause,
+which fixes the onset and leaves the pause inside the *previous* phone: the final
+schwa of *ʃnaɪə* came out **800 ms** against MFA's 160. `vc-sil` ends the previous
+phone at the pause's start and begins the next at its end, leaving an empty
+interval — what MFA and MAUS do. The schwa drops to **245 ms**.
+
+Over **941 word boundaries on the 84 helga recordings**, median \|Δ\|:
+
+| | onset vs MFA | end vs MFA | onset vs MAUS | end vs MAUS |
+|---|---|---|---|---|
+| `vc` | 62.1 ms | 57.2 ms | 73.9 ms | 70.3 ms |
+| `vc-onset` | **40.0** | 55.0 | **45.4** | 55.4 |
+| **`vc-sil`** | **40.0** | **50.0** | **45.4** | **52.9** |
+
+Silence emitted per recording (median): `vc` and `vc-onset` 0 ms, `vc-sil` 250,
+MAUS 100, MFA 415.
+
+**But both lose to `vc` against the only human-placed boundaries here** — 7.2 ms
+for `vc` against 62.0 for both onset-aware modes. They move toward MFA and MAUS,
+which share an HMM-GMM lineage, and away from the person. `vc` therefore stays
+the default; use `vc-sil` when you want a TextGrid whose phones do not span
+pauses, which is usually what you want for TTS data or for Praat.
+
+Two rules were tried and rejected on the way: the vowel rule at word onsets
+(better on one recording, *worse than doing nothing* on helga) and a class-rule
+fallback for pause-less gaps. Both were fitting one speaker.
 
 Over 84 recordings / 3,742 phones: median three-way spread **72.9 → 67.4 ms**,
 68 improve and 15 get worse. Every vocalic class improves and every consonantal
