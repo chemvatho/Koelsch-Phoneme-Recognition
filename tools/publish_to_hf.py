@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Publish the two Kölsch checkpoints to the Hugging Face Hub.
 
-    huggingface-cli login                # or: export HF_TOKEN=hf_...
-    python tools/publish_to_hf.py --owner chemvatho --dry-run
+    hf auth login                        # or: export HF_TOKEN=hf_...
+    python tools/publish_to_hf.py --owner chemvatho          # dry run
     python tools/publish_to_hf.py --owner chemvatho --push
 
 WHY NOT GITHUB. GitHub rejects any file over 100 MB outright. These two
@@ -22,7 +22,6 @@ still have a view on derived models being downloadable worldwide. That is a
 conversation to have before --push, not after.
 """
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -245,11 +244,14 @@ def main():
         print("\nDry run — nothing uploaded. Re-run with --push to publish.")
         return 0
 
-    if not (os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")):
-        print("\nNo HF_TOKEN in the environment. Run `huggingface-cli login` "
-              "first,\nor export HF_TOKEN=hf_...", file=sys.stderr)
+    from huggingface_hub import HfApi, get_token
+    # get_token() covers both an existing `hf auth login` and HF_TOKEN in the
+    # environment. Checking only the env var would refuse to run for someone
+    # who is already logged in, which is the common case.
+    if not get_token():
+        print("\nNot logged in to Hugging Face. Run `hf auth login` first,\n"
+              "or export HF_TOKEN=hf_...", file=sys.stderr)
         return 1
-    from huggingface_hub import HfApi
     api = HfApi()
     for key in picks:
         m = MODELS[key]

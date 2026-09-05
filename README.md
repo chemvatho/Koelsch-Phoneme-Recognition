@@ -231,7 +231,8 @@ which is what `from_pretrained` reads:
 | **IPA** | [`chemvatho/koelsch-wav2vec2-ipa`](https://huggingface.co/chemvatho/koelsch-wav2vec2-ipa) | 1.26 GB | phoneme transcription **and** forced alignment |
 | **Orthography** | [`chemvatho/koelsch-w2vbert-orthography`](https://huggingface.co/chemvatho/koelsch-w2vbert-orthography) | 2.42 GB | Kölsch spelling |
 
-*Published with [`tools/publish_to_hf.py`](tools/publish_to_hf.py); model cards
+*Published with [`tools/publish_to_hf.py`](tools/publish_to_hf.py) (`hf auth
+login`, then `--push`); model cards
 are in [`docs/model_cards/`](docs/model_cards/). If a link 404s, the upload has
 not been run yet — point `KOLSCH_MODEL` and `KOLSCH_ORTHO_MODEL` at local
 directories instead and everything below still works.*

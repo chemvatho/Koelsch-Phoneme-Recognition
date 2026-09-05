@@ -22,3 +22,4 @@ pillow
 # notebook 1 also needs the Tesseract BINARY, which pip cannot install:
 #   apt-get install tesseract-ocr tesseract-ocr-deu     (Debian/Ubuntu)
 #   brew install tesseract tesseract-lang               (macOS)
+huggingface_hub          # tools/publish_to_hf.py, and model downloads
