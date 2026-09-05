@@ -22,8 +22,29 @@ partner.
 | [2–4 · Corpus, segmentation, normalisation](#24--from-narrative-to-training-units) | narratives → utterance-level training units |
 | [5–8 · The models](#58--the-models) | how many, and which two ship |
 | [Training and results](#training-and-results) | curves, test scores, and what they do not mean |
+| [Get the models](#get-the-models-and-try-them) | two commands: transcribe, and align to a TextGrid |
 | [9 · Forced alignment](#9--forced-alignment) | phone boundaries in time |
 | [Install](#install) · [Layout](#repository-layout) · [Data and rights](#data-rights-and-consent) · [Citation](#citation) | |
+
+---
+
+## Quick start
+
+```bash
+git clone https://github.com/chemvatho/Koelsch-Phoneme-Recognition.git
+cd Koelsch-Phoneme-Recognition
+pip install -r requirements.txt
+
+python tools/try_models.py transcribe data/segments/cd1_track01_000.wav
+python tools/try_models.py align      data/segments/cd1_track01_000.wav
+```
+
+The models download themselves from the Hugging Face Hub on first use — nothing
+else to set up. The second command writes a Praat TextGrid and a plot.
+
+To run the notebooks instead, take them in order: stages 3 → 4 must precede 5,
+7, 8 and 9, because stage 3 writes the segment manifest and stage 4 adds the
+phonetic columns to it.
 
 ---
 
@@ -199,6 +220,76 @@ the worse system — penalised for correctly writing the dialect it heard.
 
 ---
 
+## Get the models and try them
+
+The checkpoints are **not in this repository** — they are 1.26 GB and 2.42 GB,
+and GitHub rejects any file over 100 MB. They live on the **Hugging Face Hub**,
+which is what `from_pretrained` reads:
+
+| | Hugging Face | size | what it does |
+|---|---|---|---|
+| **IPA** | [`chemvatho/koelsch-wav2vec2-ipa`](https://huggingface.co/chemvatho/koelsch-wav2vec2-ipa) | 1.26 GB | phoneme transcription **and** forced alignment |
+| **Orthography** | [`chemvatho/koelsch-w2vbert-orthography`](https://huggingface.co/chemvatho/koelsch-w2vbert-orthography) | 2.42 GB | Kölsch spelling |
+
+*Published with [`tools/publish_to_hf.py`](tools/publish_to_hf.py); model cards
+are in [`docs/model_cards/`](docs/model_cards/). If a link 404s, the upload has
+not been run yet — point `KOLSCH_MODEL` and `KOLSCH_ORTHO_MODEL` at local
+directories instead and everything below still works.*
+
+### Task 1 — transcribe into Kölsch spelling · w2v-BERT 2.0
+
+```bash
+python tools/try_models.py transcribe data/segments/*.wav
+```
+
+```
+cd1_track01_000.wav           2.44s  als kind han ich en der elsaßstroß jewonnt
+cd1_track01_001.wav           2.82s  un zwar en däm stöckche zwesche merowingerstroß un bonner stroß
+```
+
+<details><summary>the same thing in eight lines of Python</summary>
+
+```python
+import torch, librosa
+from transformers import Wav2Vec2BertForCTC, Wav2Vec2BertProcessor
+
+proc  = Wav2Vec2BertProcessor.from_pretrained("chemvatho/koelsch-w2vbert-orthography")
+model = Wav2Vec2BertForCTC.from_pretrained("chemvatho/koelsch-w2vbert-orthography").eval()
+
+wav, _ = librosa.load("clip.wav", sr=16000)
+with torch.inference_mode():
+    ids = model(**proc(wav, sampling_rate=16000, return_tensors="pt")).logits.argmax(-1)
+print(proc.batch_decode(ids)[0])
+```
+</details>
+
+### Task 2 — transcribe, align, and get a TextGrid · wav2vec2 XLS-R-300M
+
+```bash
+python tools/try_models.py align data/segments/cd1_track01_000.wav \
+    --text "Als Kind han ich en d'r Elsaßstroß jewonnt,"
+```
+
+Writes a Praat **TextGrid** with a word tier and a phone tier, plus a PNG drawn
+the same way as the figures on this page:
+
+![a TextGrid you can open in Praat](docs/figures/try_models_example.png)
+
+**You do not need a transcript.** Leave `--text` off and the clip is decoded
+first, then aligned to its own decode:
+
+```
+cd1_track01_000: decoded  als | kɪnt | han | ɪç | ən | dɐ | əlsastʁɔs | jəvɔn
+cd1_track01_000: 30 phones, 8 words -> out_alignment/cd1_track01_000.TextGrid
+```
+
+That is the convenient path and the weaker one: **a forced aligner can only
+return what you gave it**, so a recognition error becomes an alignment error.
+Supply `--text` whenever you have a transcript. Here the decode lost the final
+*t* of *jewonnt* and the alignment has no way to put it back.
+
+---
+
 ## 9 · Forced alignment
 
 Phone boundaries in time: the stage-5 model plus
@@ -345,11 +436,13 @@ and a Gemini key in the environment:
 export GEMINI_API_KEY=...        # never commit this
 ```
 
-Notebook 9 needs a trained checkpoint:
+The models are fetched from the Hub by default. To use local checkpoints
+instead, point the environment at them:
 
 ```bash
-export KOLSCH_MODEL=/path/to/models/kolsch_wav2vec2_model
-export KOLSCH_PROCESSOR=/path/to/processor      # defaults to KOLSCH_MODEL
+export KOLSCH_MODEL=/path/to/kolsch_wav2vec2_model      # IPA + alignment
+export KOLSCH_PROCESSOR=/path/to/processor              # defaults to KOLSCH_MODEL
+export KOLSCH_ORTHO_MODEL=/path/to/w2vbert_ortho_model  # orthography
 ```
 
 Every notebook locates the repository root from `kolsch_paths.py`, so it runs
@@ -363,16 +456,21 @@ identically in VS Code, Jupyter and Colab regardless of the working directory.
 01_ocr/ … 09_alignment/     one notebook + README per stage
 data/                       the worked example (see rights above)
 docs/figures/               figures used by this README and the stage READMEs
+tools/try_models.py         transcribe, align, plot — the two tasks above
+tools/publish_to_hf.py      upload the checkpoints to the Hugging Face Hub
 tools/run_notebook.py       executes a notebook and reports where it stops
+docs/model_cards/           what each published checkpoint is, and its caveats
 kolsch_align.py             the aligner and all eight gap rules, in one place
 kolsch_periodic.py          periodic energy, after ProPer — the cue `pe` reads
+kolsch_plot.py              waveform + word tier + phone tier, as drawn above
 kolsch_g2p.py               rule-based Kölsch grapheme→phoneme converter
 kolsch_paths.py             single source of truth for paths
 requirements.txt
 ```
 
-`models/` is generated and git-ignored. Publish checkpoints to the Hugging Face
-Hub rather than committing them — the phoneme model alone is 1.2 GB.
+`models/` is generated and git-ignored. Checkpoints go to the Hugging Face Hub,
+not into git — `tools/publish_to_hf.py` does that, and refuses to upload
+anything without an explicit `--push`.
 
 ---
 
