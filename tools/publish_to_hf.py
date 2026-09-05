@@ -2,8 +2,8 @@
 """Publish the two Kölsch checkpoints to the Hugging Face Hub.
 
     hf auth login                        # or: export HF_TOKEN=hf_...
-    python tools/publish_to_hf.py --owner chemvatho          # dry run
-    python tools/publish_to_hf.py --owner chemvatho --push
+    python tools/publish_to_hf.py --owner Vatho          # dry run
+    python tools/publish_to_hf.py --owner Vatho --push
 
 WHY NOT GITHUB. GitHub rejects any file over 100 MB outright. These two
 checkpoints are 1.26 GB and 2.42 GB, so neither can be pushed, and Git LFS does
@@ -192,6 +192,59 @@ MODELS = {
 }
 
 
+def preflight(api, owner):
+    """Check the namespace and the token BEFORE starting a 3.7 GB upload.
+
+    Both failures here are easy to hit and both used to surface as a raw 403
+    traceback after the transfer had already begun: a Hugging Face username that
+    differs from the GitHub one, and a fine-grained token created with no
+    permissions ticked, which authenticates fine and can do nothing.
+    """
+    try:
+        me = api.whoami()
+    except Exception as e:
+        print(f"\ncould not identify the token: {type(e).__name__}: {e}",
+              file=sys.stderr)
+        return False
+
+    name = me.get("name")
+    orgs = [o.get("name") for o in me.get("orgs", [])]
+    if owner != name and owner not in orgs:
+        print(f"\nThis token belongs to '{name}'"
+              + (f" (orgs: {', '.join(orgs)})" if orgs else "")
+              + f", not '{owner}'.\n"
+              f"Your Hugging Face username is not necessarily your GitHub one.\n"
+              f"Re-run with:  --owner {name}", file=sys.stderr)
+        return False
+
+    auth = (me.get("auth") or {}).get("accessToken") or {}
+    fg = auth.get("fineGrained")
+    if fg is not None:
+        perms = set(fg.get("global") or [])
+        for s in fg.get("scoped") or []:
+            ent = s.get("entity") or {}
+            if ent.get("name") in (name, *orgs):
+                perms |= set(s.get("permissions") or [])
+        if not any("write" in p or "repo.create" in p or "Write" in p
+                   for p in perms):
+            print(f"\nThe token for '{name}' has no write permission "
+                  f"({sorted(perms) or 'no scopes at all'}).\n"
+                  "A fine-grained token needs 'Write access to contents and "
+                  "settings of all repos\nunder your account', or at least "
+                  "repo creation plus write.\n\n"
+                  "  Make one at https://huggingface.co/settings/tokens\n"
+                  "  then:  hf auth login        (paste the new token)",
+                  file=sys.stderr)
+            return False
+    elif auth.get("role") not in (None, "write", "admin"):
+        print(f"\nThe token for '{name}' is role '{auth.get('role')}' — "
+              "read-only. A write token is needed.\n"
+              "  https://huggingface.co/settings/tokens", file=sys.stderr)
+        return False
+    print(f"\ntoken ok: {name}")
+    return True
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--owner", required=True, help="your Hugging Face username")
@@ -253,6 +306,8 @@ def main():
               "or export HF_TOKEN=hf_...", file=sys.stderr)
         return 1
     api = HfApi()
+    if not preflight(api, args.owner):
+        return 1
     for key in picks:
         m = MODELS[key]
         repo = f"{args.owner}/{m['name']}"

@@ -228,8 +228,8 @@ which is what `from_pretrained` reads:
 
 | | Hugging Face | size | what it does |
 |---|---|---|---|
-| **IPA** | [`chemvatho/koelsch-wav2vec2-ipa`](https://huggingface.co/chemvatho/koelsch-wav2vec2-ipa) | 1.26 GB | phoneme transcription **and** forced alignment |
-| **Orthography** | [`chemvatho/koelsch-w2vbert-orthography`](https://huggingface.co/chemvatho/koelsch-w2vbert-orthography) | 2.42 GB | Kölsch spelling |
+| **IPA** | [`Vatho/koelsch-wav2vec2-ipa`](https://huggingface.co/Vatho/koelsch-wav2vec2-ipa) | 1.26 GB | phoneme transcription **and** forced alignment |
+| **Orthography** | [`Vatho/koelsch-w2vbert-orthography`](https://huggingface.co/Vatho/koelsch-w2vbert-orthography) | 2.42 GB | Kölsch spelling |
 
 *Published with [`tools/publish_to_hf.py`](tools/publish_to_hf.py) (`hf auth
 login`, then `--push`); model cards
@@ -254,8 +254,8 @@ cd1_track01_001.wav           2.82s  un zwar en däm stöckche zwesche merowinge
 import torch, librosa
 from transformers import Wav2Vec2BertForCTC, Wav2Vec2BertProcessor
 
-proc  = Wav2Vec2BertProcessor.from_pretrained("chemvatho/koelsch-w2vbert-orthography")
-model = Wav2Vec2BertForCTC.from_pretrained("chemvatho/koelsch-w2vbert-orthography").eval()
+proc  = Wav2Vec2BertProcessor.from_pretrained("Vatho/koelsch-w2vbert-orthography")
+model = Wav2Vec2BertForCTC.from_pretrained("Vatho/koelsch-w2vbert-orthography").eval()
 
 wav, _ = librosa.load("clip.wav", sr=16000)
 with torch.inference_mode():

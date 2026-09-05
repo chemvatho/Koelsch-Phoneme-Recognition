@@ -24,10 +24,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-IPA_MODEL = os.environ.get("KOLSCH_MODEL", "chemvatho/koelsch-wav2vec2-ipa")
+IPA_MODEL = os.environ.get("KOLSCH_MODEL", "Vatho/koelsch-wav2vec2-ipa")
 IPA_PROC = os.environ.get("KOLSCH_PROCESSOR", IPA_MODEL)
 ORTHO_MODEL = os.environ.get("KOLSCH_ORTHO_MODEL",
-                             "chemvatho/koelsch-w2vbert-orthography")
+                             "Vatho/koelsch-w2vbert-orthography")
 SR = 16_000
 
 
