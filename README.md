@@ -367,9 +367,14 @@ among others.
 
 ![three aligners on one chain](docs/figures/three_aligners.png)
 
-Four rows, three aligners — wav2vec2 appears twice because the gap rule changes
-what it can express. Give all of them the **same phone chain**, or you are
-measuring three pronunciation dictionaries rather than three aligners.
+Five rows, three aligners — wav2vec2 appears three times because the gap rule
+changes what it can express. Give all of them the **same phone chain**, or you
+are measuring three pronunciation dictionaries rather than three aligners.
+
+The same sentence cut into its two prosodic segments and aligned independently,
+on a shared time scale so one second is the same width in both panels:
+
+![both segments, five systems](docs/figures/three_aligners_chunks.png)
 
 **Look at where the rows have holes.** MFA and MAUS model silence explicitly, so
 a pause is an interval belonging to nobody. `vc` cannot say "silence" at all — its
