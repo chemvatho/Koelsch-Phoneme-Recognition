@@ -192,6 +192,34 @@ MODELS = {
 }
 
 
+def legacy_preprocessor(src, proc_dir):
+    """-> a temp dir holding preprocessor_config.json, or None.
+
+    transformers 5.x writes the feature-extractor settings as a nested
+    "feature_extractor" key inside processor_config.json and reads them back
+    from there. transformers 4.x knows nothing about that and looks for
+    preprocessor_config.json; without it, from_pretrained raises. Since
+    requirements.txt allows >=4.40, publishing only the 5.x layout would break
+    loading for a large part of the range we advertise, so both are shipped.
+    """
+    import tempfile
+    from transformers import AutoProcessor
+    try:
+        proc = AutoProcessor.from_pretrained(str(proc_dir or src))
+        fe = getattr(proc, "feature_extractor", None)
+        if fe is None:
+            return None
+        tmp = tempfile.mkdtemp(prefix="kolsch_fe_")
+        fe.save_pretrained(tmp)
+        out = Path(tmp) / "preprocessor_config.json"
+        return out if out.exists() else None
+    except Exception as e:
+        print(f"  (could not build preprocessor_config.json: "
+              f"{type(e).__name__}: {e}) — 4.x users may need transformers>=5",
+              file=sys.stderr)
+        return None
+
+
 def preflight(api, owner):
     """Check the namespace and the token BEFORE starting a 3.7 GB upload.
 
@@ -320,7 +348,13 @@ def main():
         if m["proc"]:
             api.upload_folder(folder_path=str(m["proc"]), repo_id=repo,
                               repo_type="model")
-        api.upload_file(path_or_fileobj=(card_dir / f"{m['name']}.md"),
+        fe = legacy_preprocessor(m["src"], m["proc"])
+        if fe is not None:
+            api.upload_file(path_or_fileobj=str(fe),
+                            path_in_repo="preprocessor_config.json",
+                            repo_id=repo, repo_type="model")
+            print("  + preprocessor_config.json (transformers 4.x)")
+        api.upload_file(path_or_fileobj=str(card_dir / f"{m['name']}.md"),
                         path_in_repo="README.md", repo_id=repo,
                         repo_type="model")
         print(f"  https://huggingface.co/{repo}")

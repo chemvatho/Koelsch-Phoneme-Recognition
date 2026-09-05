@@ -27,8 +27,8 @@ spelling: **94.1 % of Kölsch word tokens are out of vocabulary** against the
 import torch, librosa
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
-proc  = Wav2Vec2Processor.from_pretrained("chemvatho/koelsch-wav2vec2-ipa")
-model = Wav2Vec2ForCTC.from_pretrained("chemvatho/koelsch-wav2vec2-ipa").eval()
+proc  = Wav2Vec2Processor.from_pretrained("Vatho/koelsch-wav2vec2-ipa")
+model = Wav2Vec2ForCTC.from_pretrained("Vatho/koelsch-wav2vec2-ipa").eval()
 
 wav, _ = librosa.load("clip.wav", sr=16000)
 with torch.inference_mode():
