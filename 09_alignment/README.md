@@ -1,13 +1,14 @@
 # 9 · Forced alignment — phone boundaries in time
 
-Two notebooks:
+Three notebooks:
 
 | | | |
 |---|---|---|
 | **9** | [`09_forced_alignment.ipynb`](09_forced_alignment.ipynb) | produce TextGrids |
 | **9b** | [`09b_gap_rules_compared.ipynb`](09b_gap_rules_compared.ipynb) | decide which gap rule to trust, measured |
+| **9c** | [`09c_periodic_energy.ipynb`](09c_periodic_energy.ipynb) | add an acoustic cue where there was only a rule — and check it exists in your audio first |
 
-Both import `kolsch_align.py` at the repo root, so the rules are implemented once and the two notebooks cannot drift apart.
+All three import `kolsch_align.py` at the repo root, so the rules are implemented once and the notebooks cannot drift apart.
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/chemvatho/Koelsch-Phoneme-Recognition/blob/main/09_alignment/09_forced_alignment.ipynb)
 
@@ -19,7 +20,7 @@ No pronunciation dictionary needed beyond `kolsch_g2p.py` — which is the point
 MFA and MAUS both need a German lexicon, and **94.1 % of Kölsch word tokens are
 OOV** against the 152,766-word `german_mfa` dictionary.
 
-## Use `absorb="vc-onset"`
+## Which `absorb` mode — `vc` by default
 
 CTC is peaky: the labelled frames cover only 14–21 % of the timeline, so **most
 of every phone duration in the output is a rule, not a measurement.** The obvious
@@ -38,6 +39,7 @@ untouched by construction, so cross-system comparisons stay valid.
 | `vc` | the **vowel**, at C→V and V→C; otherwise as `hybrid` |
 | `vc-onset` | `vc`, plus word boundaries at the end of the pause |
 | **`vc-sil`** | `vc-onset` **plus explicit silence** — supersedes it |
+| `pe` | `vc-sil`, plus obstruent→sonorant onsets at **voicing onset**, read off a periodic-energy curve. Needs a quiet recording — see below |
 
 `vc` leaves word-boundary gaps alone, and that is where the error concentrates:
 word-internal onsets sit 11.7 ms from MFA, word-initial ones 113.0.
@@ -70,15 +72,72 @@ Two rules were tried and rejected on the way: the vowel rule at word onsets
 (better on one recording, *worse than doing nothing* on helga) and a class-rule
 fallback for pause-less gaps. Both were fitting one speaker.
 
-Over 84 recordings / 3,742 phones: median three-way spread **72.9 → 67.4 ms**,
-68 improve and 15 get worse. Every vocalic class improves and every consonantal
-class is flat or slightly worse — a **net** gain, not a uniform one.
+Over 84 recordings / 3,742 phones `vc` gives a median three-way spread of
+**72.9 → 67.4 ms**, 68 improving and 15 getting worse. Every vocalic class
+improves and every consonantal class is flat or slightly worse — a **net** gain,
+not a uniform one.
+
+## `pe` — the one boundary the signal can answer directly
+
+Every rule above decides a gap from the CTC posteriors, the phone classes, or a
+broadband spectral-change curve. **None of them can tell noise from voicing**, so
+they place the edge of a fricative by the same logic they use for a nasal.
+
+`pe` adds a measurement: **periodic energy**, after
+[ProPer](https://osf.io/28ea5/) (Albert, Cangemi, Ellison & Grice, IfL Phonetik /
+SFB 1252, Cologne) — how much of the signal's energy is *periodic*, with the zero
+of the scale set by the loudest **aperiodic** frame in the recording, so a
+fricative sits at 0 dB by construction. Where a gap runs from an obstruent to a
+sonorant, the boundary goes at **voicing onset**. After a stop that is the end of
+VOT, so closure, burst and aspiration stay inside the consonant.
+
+![the rule firing, and the rule declining to fire](../docs/figures/periodic_energy_cases.png)
+
+Over the same 84 recordings — 941 word boundaries, 2717 word-internal ones —
+median \|Δ\|, **never worse than `vc-sil` on any bucket against either
+reference**:
+
+| | vc-sil | **pe** |
+|---|---|---|
+| MFA · word-initial / internal / final-end | 40.0 / 26.0 / 50.0 | **37.5 / 22.7 / 47.5** |
+| MAUS · word-initial / internal / final-end | 42.9 / 34.3 / 52.9 | 42.9 / **32.1** / 52.9 |
+| voiceless fricative → vowel | 30.4 / 39.0 | **21.6 / 33.5** |
+
+![where it helps and where it does nothing](../docs/figures/periodic_class_pairs.png)
+
+**Four variants that sounded just as good and lost:** the mirror rule at voicing
+*offset* (voicing offset is gradual — devoicing, creak — so it is not a
+location); ProPer's own steepest-rise landmark (lands late into the vowel); the
+landmarks applied to every gap (between two sonorants the curve is flat); and
+trusting the crossing on *voiced* obstruents (there is no onset — intervocalic
+/h/ never stops being voiced).
+
+**One honest confound.** The gain at *voiced* fricative→vowel is **not** the
+curve. Dropping an unrelated clause of the `vc` rule — its exception for
+fricatives between two vowels — gets there with no curve at all. The curve earns
+its place at *voiceless* fricatives, where dropping that clause instead makes
+things worse.
+
+### It needs a quiet recording, and it will not tell you
+
+Broadband noise fills in the AMDF minimum that periodicity is read from. This
+project has one corpus of each kind:
+
+| | noise floor | periodicity when loud | vowel vs voiceless fricative |
+|---|---|---|---|
+| 84 field recordings, 16 kHz | −46 dB | 0.85 | d′ = **1.1** |
+| 55 archival CD cuts *(the sample shipped here)* | −11 to −27 dB | 0.64 | d′ = **0.08** |
+
+On the second kind `pe` moves boundaries on the strength of a curve that is
+measuring hiss. Call `kolsch_periodic.cue_strength()` — section 1 of notebook 9c
+does it for you and refuses to export in `pe` if the cue is absent, which on the
+shipped sample is what happens (3 of 55 recordings pass).
 
 **Input:** segment manifest (Notebook 3) + a trained checkpoint (Notebook 5).
 **Output:** one TextGrid per segment in `data/textgrids/` (git-ignored).
 
 ```bash
-export KOLSCH_MODEL=/path/to/models/kolsch_wav2vec2_model_all
+export KOLSCH_MODEL=/path/to/models/kolsch_wav2vec2_model
 ```
 
 MFA and MAUS comparisons are documented in the notebook and **do not run by

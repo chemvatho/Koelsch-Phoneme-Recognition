@@ -60,14 +60,19 @@ import numpy as np
 import torch
 import torchaudio
 
-MODES = ("none", "even", "weighted", "hybrid", "vc", "vc-onset", "vc-sil")
+MODES = ("none", "even", "weighted", "hybrid", "vc", "vc-onset", "vc-sil", "pe")
 SEP = "|"
 SAMPLE_RATE = 16_000
 
 VOWEL_SHORT = set("a e œ ɐ ɔ ə ɛ ɪ ʊ ʏ y".split())
 VOWEL_LONG = set("aː eː iː oː uː yː øː ɛː".split())
 DIPHTHONG = set("aɪ aʊ ɔɪ ɔʏ ɛɪ".split())
-PLOSIVE = set("b d g k p t".split())
+# Both g's on purpose. The model published in models/ was trained with U+0261
+# LATIN SMALL LETTER SCRIPT G, the IPA character; the larger model this project
+# trains locally uses ASCII g. They look identical and are not, and the
+# constructor check below turns that into an error rather than a phone silently
+# classified as "not a plosive".
+PLOSIVE = set("b d g ɡ k p t".split())
 AFFRICATE = set("p͡f t͡s t͡ʃ".split())
 FRICATIVE = set("f h s v z ç ʃ ʒ χ".split())
 NASAL = set("m n ŋ".split())
@@ -166,8 +171,16 @@ def merge_repeats(tokens, scores, blank_id, tokenizer):
 
 
 def absorb_gaps(segments, flux, ftimes, spf, mode="vc",
-                env_t=None, env_db=None, env_thr=None, drop_label=SEP):
-    """Decide who owns each blank run. See the module docstring for the modes."""
+                env_t=None, env_db=None, env_thr=None, drop_label=SEP,
+                sustained_exception=True):
+    """Decide who owns each blank run. See the module docstring for the modes.
+
+    sustained_exception=False disables one clause of the vc rule -- the one that
+    declines to hand a C->V blank to the vowel when the consonant is a fricative
+    or affricate BETWEEN two vowels. It exists only so that the periodic-energy
+    evaluation can tell its own effect apart from the effect of dropping that
+    clause; see 12_eval_periodic.py. Leave it True.
+    """
     if mode not in MODES:
         raise ValueError(f"unknown mode {mode!r}; expected one of {MODES}")
     word_internal_only = mode in ("hybrid", "vc", "vc-onset", "vc-sil")
@@ -225,7 +238,8 @@ def absorb_gaps(segments, flux, ftimes, spf, mode="vc",
             if va and not vb:
                 bounds.append(b.start)
                 continue
-            if vb and not va and not (a.label in SUSTAINED and i
+            if vb and not va and not (sustained_exception
+                                      and a.label in SUSTAINED and i
                                       and kept[i - 1].label in VOCALIC):
                 bounds.append(a.end)
                 continue
@@ -240,6 +254,123 @@ def absorb_gaps(segments, flux, ftimes, spf, mode="vc",
         st = sil[i - 1][1] if (i - 1) in sil else bounds[i]
         en = sil[i][0] if i in sil else bounds[i + 1]
         out.append(Segment(seg.label, st, max(st, en), seg.score))
+    return out
+
+
+def absorb_gaps_pe(segments, flux, ftimes, spf, pt, pp, env, env_thr,
+                   env_t=None, env_db=None, drop_label=SEP,
+                   cross_only=True, closure=True, closure_ms=25.0,
+                   sustained_only=False, onset="0.5", offset=False,
+                   aperiodic_db=6.0, base=None):
+    """vc-sil, overruled by periodic energy at the one edge it can see clearly.
+
+    Every rule before this one decides a gap from the CTC posteriors, from the
+    phone classes, or from broadband spectral change. None can tell noise from
+    voicing, so all of them place a fricative-vowel edge by the same logic they
+    use for a nasal-vowel one. Periodic energy -- see kolsch_periodic, after
+    ProPer -- separates those, and this mode applies it to:
+
+      obstruent -> sonorant   VOICING ONSET, taken as the halfway crossing of
+                              the periodic-energy rise across the gap. After a
+                              stop that is the end of VOT, so closure, burst and
+                              aspiration stay inside the consonant; after /h/ or
+                              /s/ it is where the vowel starts rather than where
+                              the noise gets loud.
+
+    and, by default, to nothing else. Three restrictions were not designed but
+    measured, on 941 word boundaries and 2717 word-internal ones across the 84
+    helga recordings, scored against MFA and MAUS separately:
+
+      * ONSETS ONLY (offset=False). The mirror rule -- voicing offset at
+        sonorant -> obstruent -- looked equally principled and is not: it costs
+        9 ms at nasal-stop boundaries against both references. Voicing onset is
+        an abrupt event; voicing offset is gradual, so "where the curve falls"
+        is not a location. offset=True restores it.
+      * HALFWAY, NOT STEEPEST (onset="0.5"). The steepest rise, which is the
+        threshold-free landmark ProPer uses for cycle boundaries, lands late
+        into the vowel: 22.5 ms from MFA at stop-vowel edges against 16.6 for
+        the halfway crossing. onset="rise" restores it.
+      * SONORANT/OBSTRUENT ONLY (cross_only=True). Between two sonorants the
+        periodic curve is flat, and a landmark read off a flat curve is noise:
+        applying these rules everywhere cost 12 ms at nasal-vowel and V-V
+        boundaries.
+
+    Silence is handled by position:
+
+      * between two words a pause is EMITTED as a hole -- vc-sil's behaviour,
+        inherited unchanged;
+      * inside a word it is not a pause but a closure, and it belongs to the
+        consonant that FOLLOWS it, so the boundary goes at the silence's START.
+        A word-internal silence never becomes a hole and never extends the
+        phone in front of it.
+
+    Net, against vc-sil: better or equal on all six of {MFA, MAUS} x
+    {word-initial onset, word-internal onset, word-final end}, with no bucket
+    made worse by either reference. The gain concentrates where it was designed
+    to: voiceless fricative -> vowel goes 30.4 -> 21.2 ms against MFA and
+    39.0 -> 32.1 against MAUS.
+    """
+    from kolsch_periodic import crossing, fall, quiet_span, rise
+
+    def _onset(t0, t1):
+        if onset == "rise":
+            return rise(t0, t1, pt, pp)
+        return crossing(t0, t1, pt, pp, frac=float(onset))
+
+    # `base` lets a caller that already has its own vc-sil supply it, so this
+    # periodic layer stays one implementation across two codebases without
+    # either having to trust the other's vc-sil.
+    if base is None:
+        base = absorb_gaps(segments, flux, ftimes, spf, mode="vc-sil",
+                           env_t=env_t, env_db=env_db, env_thr=env_thr,
+                           drop_label=drop_label)
+    if len(base) < 2:
+        return base
+    kept = [s for s in segments if s.label != drop_label]
+    spans_sep, k = set(), -1
+    for seg in segments:
+        if seg.label == drop_label:
+            spans_sep.add(k)
+        else:
+            k += 1
+
+    out = [Segment(s.label, s.start, s.end, s.score) for s in base]
+    for i in range(len(out) - 1):
+        a, b = kept[i], kept[i + 1]
+        if b.start <= a.end or out[i].end < out[i + 1].start - 1e-9:
+            continue                      # no blank run, or vc-sil left a hole
+        sa, sb = a.label in VOCALIC or a.label in NASAL or a.label in APPROXIMANT, \
+            b.label in VOCALIC or b.label in NASAL or b.label in APPROXIMANT
+        if cross_only and sa == sb:
+            continue
+        if sustained_only and (a.label if sb else b.label) not in SUSTAINED:
+            continue
+        t0, t1 = a.end * spf, b.start * spf
+
+        t = None
+        if closure and not sb and i not in spans_sep:
+            span = quiet_span(t0, t1, pt, pp, env, env_thr, min_ms=closure_ms)
+            if span is not None:
+                t = span[0]
+        if t is None and sb and not sa:
+            # Is there anything to find? A VOICED obstruent -- intervocalic /h/,
+            # /v/, /z/ -- keeps the curve well above the floor for the whole
+            # gap, so there is no voicing onset inside it: voicing never
+            # stopped. Cutting at a crossing of a curve that only wobbles
+            # invents a landmark. Hand the blank to the sonorant instead, which
+            # is where the CTC spike says the obstruent ended.
+            lo, hi = (int(np.searchsorted(pt, t0)), int(np.searchsorted(pt, t1)))
+            t = (a.end * spf if hi - lo >= 2 and pp[lo:hi].min() >= aperiodic_db
+                 else _onset(t0, t1))
+        if t is None:
+            t = fall(t0, t1, pt, pp) if sa and not sb and offset else None
+        if t is None:
+            continue
+        t = min(max(t / spf, a.end), b.start)
+        out[i] = Segment(out[i].label, out[i].start, max(out[i].start, t),
+                         out[i].score)
+        out[i + 1] = Segment(out[i + 1].label, min(t, out[i + 1].end),
+                             out[i + 1].end, out[i + 1].score)
     return out
 
 
@@ -394,15 +525,24 @@ class Aligner:
 
         flux, ftimes = spectral_flux(wav, SAMPLE_RATE)
         env_t = env_db = env_thr = None
-        if mode in ("vc-onset", "vc-sil"):
+        if mode in ("vc-onset", "vc-sil", "pe"):
             env_t, env_db = energy_envelope(wav, SAMPLE_RATE)
             if len(env_db):
                 floor, peak = np.percentile(env_db, 15), env_db.max()
                 env_thr = floor + 0.15 * (peak - floor)
             else:
                 env_t = None
-        segs = absorb_gaps(segs, flux, ftimes, spf, mode=mode,
-                           env_t=env_t, env_db=env_db, env_thr=env_thr)
+        if mode == "pe":
+            from kolsch_periodic import on_grid, periodic_power
+            pt, pp, _, _ = periodic_power(wav, SAMPLE_RATE)
+            if len(pt) == 0 or env_t is None:
+                raise ValueError(f"{wav_path}: too short for a periodic curve")
+            segs = absorb_gaps_pe(segs, flux, ftimes, spf, pt, pp,
+                                  on_grid(env_t, env_db, pt), env_thr,
+                                  env_t=env_t, env_db=env_db)
+        else:
+            segs = absorb_gaps(segs, flux, ftimes, spf, mode=mode,
+                               env_t=env_t, env_db=env_db, env_thr=env_thr)
 
         phones = [{"label": s.label, "start": s.start * spf,
                    "end": s.end * spf, "score": s.score} for s in segs]

@@ -86,7 +86,8 @@ book + CDs ─► 1 OCR ─► 2 Corpus ─► 3 Segment ─► 4 Normalise ─�
 | 7 | **Word-level** | IPA word-level & orthographic recognition on XLS-R | [`07_word_level/`](07_word_level/07_word_level_recognition.ipynb) |
 | 8 | **Orthography** | **W2v-BERT 2.0** + CTC head → Kölsch spelling | [`08_orthography/`](08_orthography/08_w2vbert_orthography.ipynb) |
 | 9 | **Alignment** | Phone boundaries in time → Praat TextGrids | [`09_alignment/`](09_alignment/09_forced_alignment.ipynb) |
-| 9b | **Gap rules** | All seven rules measured on your own data | [`09_alignment/`](09_alignment/09b_gap_rules_compared.ipynb) |
+| 9b | **Gap rules** | Every gap rule measured on your own data | [`09_alignment/`](09_alignment/09b_gap_rules_compared.ipynb) |
+| 9c | **Periodic energy** | Voicing onset as a boundary cue — and whether your audio has it | [`09_alignment/`](09_alignment/09c_periodic_energy.ipynb) |
 
 ---
 
@@ -212,7 +213,7 @@ want one of the two, take `vc-sil`.
 > | | mean | dann offset | wööd onset | wööd offset |
 > |---|---|---|---|---|
 > | **`vc`** | **7.2 ms** | 3.2 | 6.8 | 11.7 |
-> | `vc-onset` / `vc-sil` | 62.0 ms | 36.0 | 26.0 | 124.0 |
+> | `vc-onset` / `vc-sil` / `pe` | 62.0 ms | 36.0 | 26.0 | 124.0 |
 > | MAUS | 80.8 ms | 78.1 | 68.1 | 96.1 |
 > | MFA | 123.7 ms | 121.0 | 111.0 | 139.0 |
 >
@@ -227,7 +228,7 @@ want one of the two, take `vc-sil`.
 > against two related systems is not ground truth either. They disagree, and
 > neither settles it.
 
-**[Notebook 9b](09_alignment/09b_gap_rules_compared.ipynb) runs all seven rules
+**[Notebook 9b](09_alignment/09b_gap_rules_compared.ipynb) runs every gap rule
 on your own data** and measures the three things that need no reference — how
 much of the TextGrid is invented, where each rule puts the blank run, and whether
 phones swallow the pauses — plus a reference comparison that activates if you
@@ -249,8 +250,15 @@ C→V rule hands the blank run to the vowel starting at the consonant's spike
 There is no agreed target to fix it against — MFA says `/h/` is 10 ms, MAUS says
 100. Past this point the honest move is to learn the boundary from the
 **acoustics of the specific transition** — release burst, formant transition,
-frication onset, voicing — rather than a phone-class lookup. That needs the
-hand-corrected reference first.
+frication onset, voicing — rather than a phone-class lookup.
+
+[`pe`](#pe--voicing-onset-as-a-measurement) does that for one of those cues,
+voicing, and it does move the class of boundary this section is about: voiceless
+fricative → vowel goes 30.4 → 21.6 ms against MFA across 205 instances. **It does
+not move this particular token** — `/h/` in *høːt* ends at 0.525 s under `pe`
+against 0.522 under `vc-sil`, a 3 ms change in the wrong direction. The rule
+improves a distribution; it does not repair every member of it, and the token
+this section was written around remains one it gets wrong.
 
 ### Does it help?
 
@@ -285,6 +293,75 @@ the effect is larger: median three-way spread **55.0 → 42.9 ms**.
 Every vocalic class improves; every consonantal class is flat or very slightly
 worse. Vowels gain more than consonants lose, so the total moves the right way —
 but **"vc is better" is a net claim, not a uniform one.**
+
+### `pe` — voicing onset as a measurement
+
+Every rule above decides a blank run from the CTC posteriors, the phone classes,
+or a broadband spectral-change curve. **None of them can tell noise from
+voicing**, so all of them place the edge of a fricative by the logic they use for
+a nasal.
+
+`pe` adds a measurement. Following **ProPer — PROsodic analysis with PERiodic
+energy** (Albert, Cangemi, Ellison & Grice, IfL Phonetik / SFB 1252, University
+of Cologne, <https://osf.io/28ea5/>) it measures not how loud the signal is but
+**how much of its energy is periodic**, with the zero of the scale set by the
+loudest *aperiodic* frame in the recording — so a fricative sits at 0 dB by
+construction, however loud it is. Where a gap runs from an obstruent to a
+sonorant, the boundary goes at **voicing onset**. After a stop that is the end of
+VOT, so closure, burst and aspiration stay inside the consonant instead of being
+scored as vowel.
+
+Periodicity comes from the average magnitude difference function rather than
+Praat, so the whole thing is one dependency-free file, `kolsch_periodic.py`.
+
+![the rule firing, and the rule declining to fire](docs/figures/periodic_energy_cases.png)
+
+**It knows when not to apply itself.** A voiced obstruent has no voicing onset —
+intervocalic `/h/` is breathy voiced and never stops being periodic — so where
+the curve never approaches the floor there is nothing to find, and the blank goes
+to the sonorant instead. The right-hand panel above is that case.
+
+Same 84 recordings, 941 word boundaries and 2717 word-internal ones, median
+\|Δ\|. **Never worse than `vc-sil` on any bucket against either reference:**
+
+| | `vc-sil` | **`pe`** |
+|---|---|---|
+| MFA · word-initial / internal / final-end | 40.0 / 26.0 / 50.0 | **37.5 / 22.7 / 47.5** |
+| MAUS · word-initial / internal / final-end | 42.9 / 34.3 / 52.9 | 42.9 / **32.1** / 52.9 |
+| voiceless fricative → vowel | 30.4 / 39.0 | **21.6 / 33.5** |
+| voiced fricative → vowel | 30.9 / 33.4 | **20.1 / 17.7** |
+
+![where it helps and where it does nothing](docs/figures/periodic_class_pairs.png)
+
+Four variants that sounded just as good were implemented, measured and rejected:
+the mirror rule at voicing *offset* (offset is gradual — devoicing, creak — so it
+is not a location); ProPer's own steepest-rise landmark (lands late into the
+vowel); the landmarks at every gap (between two sonorants the curve is flat); and
+trusting the crossing on voiced obstruents. `scripts/12_eval_periodic.py` in the
+comparison harness runs all of them.
+
+**One honest confound.** The gain at *voiced* fricative → vowel above is **not**
+the periodic curve. Dropping an unrelated clause of the `vc` rule — its exception
+for fricatives between two vowels — reaches 20.4 / 18.2 ms there with no curve at
+all. The curve earns its place at *voiceless* fricatives, where dropping that
+clause instead makes things **worse** (35.1 / 48.3). Two effects on two different
+sets of phones, and only a control column separates them.
+
+**And it needs a quiet recording, which it will not tell you unasked.**
+Broadband noise fills in the AMDF minimum that periodicity is read from. This
+project happens to have one corpus of each kind:
+
+| | noise floor | periodicity when loud | vowel vs voiceless fricative |
+|---|---|---|---|
+| 84 field recordings, 16 kHz | −46 dB | 0.85 | d′ = **1.1** |
+| 55 archival CD cuts *(the sample shipped here)* | −11 to −27 dB | 0.64 | d′ = **0.08** |
+
+On the second kind `pe` moves boundaries on the strength of a curve that is
+measuring hiss, and is strictly worse than `vc-sil`. `kolsch_periodic.cue_strength()`
+answers this in one call; notebook 9c runs it first and **refuses to export in
+`pe` if the cue is absent** — which on the shipped sample is what happens, 3 of
+55 recordings passing. `vc` remains this repository's default for that reason
+among others.
 
 ### Comparing against MFA and MAUS
 
@@ -326,7 +403,8 @@ you cannot tell from these numbers alone how much of that gain is accuracy and
 how much is conformity.
 
 Against the only human-placed boundaries available — three edges of two hand-cut
-excerpts — `vc` sat **7.2 ms** away on average, `vc-sil` 62.0, MAUS 80.8 and MFA
+excerpts — `vc` sat **7.2 ms** away on average, `vc-sil` and `pe` 62.0 (`pe`
+changes none of those three edges), MAUS 80.8 and MFA
 123.7. **Three boundaries from one speaker is an anecdote, not a result**, and it
 points the opposite way from the 84-recording comparison. Getting past that
 standoff needs a hand-corrected reference, which is the top
@@ -534,7 +612,8 @@ identically in VS Code, Jupyter and Colab regardless of the working directory.
 data/                       the worked example (see rights above)
 docs/figures/               figures used by this README
 tools/run_notebook.py       executes a notebook and reports where it stops
-kolsch_align.py             the aligner and all seven gap rules, in one place
+kolsch_align.py             the aligner and all eight gap rules, in one place
+kolsch_periodic.py          periodic energy, after ProPer — the cue `pe` reads
 kolsch_g2p.py               rule-based Kölsch grapheme→phoneme converter
 kolsch_paths.py             single source of truth for paths
 requirements.txt
@@ -574,3 +653,12 @@ Cologne, in tandem with **Simon Rössig**. With thanks to **Martine Grice**,
 phoneme-recognition study), and to the **Akademie för uns kölsche Sproch** as
 corpus partner. Built on Meta AI's Wav2Vec2 / XLS-R / w2v-BERT and MMS, and
 Hugging Face Transformers.
+
+The `pe` gap rule takes its central idea — periodic energy, floored on the
+recording's own voiceless portions — from **ProPer: PROsodic analysis with
+PERiodic energy**, by Aviad Albert, Francesco Cangemi, T. Mark Ellison and
+Martine Grice at IfL Phonetik / SFB 1252, <https://osf.io/28ea5/>; see Albert,
+Cangemi & Grice (2018), *Speech Prosody 2018*, 804–807,
+[doi:10.21437/SpeechProsody.2018-162](https://doi.org/10.21437/SpeechProsody.2018-162).
+`kolsch_periodic.py` is not ProPer: it is a Praat-free, R-free reimplementation
+of two of its ideas using AMDF for periodicity, and its shortcomings are ours.
