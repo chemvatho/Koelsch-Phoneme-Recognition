@@ -131,8 +131,9 @@ print(proc.batch_decode(ids)[0])
 MODELS = {
     "ipa": dict(
         name="koelsch-wav2vec2-ipa",
-        src=ROOT.parents[2] / "best_model" / "kolsch_wav2vec2_model_all",
-        proc=ROOT.parents[2] / "best_model" / "kolsch_final_model_all",
+        src=ROOT.parents[3] / "kolsch_project" / "models"
+            / "koelsch-wav2vec2-ipa",
+        proc=None,
         title="Kölsch phoneme recogniser — wav2vec2 XLS-R-300M (IPA)",
         tags="phoneme-recognition, forced-alignment, ipa",
         summary=(
@@ -147,12 +148,19 @@ MODELS = {
         cli="align clip.wav        # TextGrid + plot",
         results=(
             "| | |\n|---|---|\n"
-            "| **PER** | **15.3 %** |\n"
-            "| CER over the IPA stream | 15.3 % |\n\n"
-            "467 held-out utterances, 21,463 reference phones, recomputed from "
-            "the stored test predictions. For context, an off-the-shelf "
-            "multilingual Wav2Vec2Phoneme scores ~33 % PER on comparable "
-            "German-dialect material."),
+            "| **PER** | **15.7 %** |\n"
+            "| substitutions / deletions / insertions | 1,299 / 941 / 446 |\n\n"
+            "467 held-out utterances, 17,122 reference phones, recomputed from "
+            "the stored test predictions. Scored over the full token stream, "
+            "which also contains a word-separator symbol that is not a phone, "
+            "the rate is 15.3 % over 21,463 tokens; the phone-only figure is "
+            "reported here because a phone error rate over non-phones is not "
+            "one.\n\n"
+            "For context, an off-the-shelf multilingual Wav2Vec2Phoneme used "
+            "zero-shot scores about 33 % PER on comparable German-dialect "
+            "material, so this fine-tune more than halves it — but that is a "
+            "zero-shot baseline, and the test split here is not "
+            "speaker-disjoint, so it is not a like-for-like win."),
         leakage="103 of its 105 speakers also appear in training.",
         extra_limits=(
             "- **For alignment, roughly four fifths of every phone duration is a "
@@ -163,8 +171,8 @@ MODELS = {
     ),
     "ortho": dict(
         name="koelsch-w2vbert-orthography",
-        src=ROOT.parents[2] / "Compare_helga_glidehaus" / "Kolsch_Dataset"
-            / "kolsch_w2vbert_ortho_model",
+        src=ROOT.parents[3] / "kolsch_project" / "models"
+            / "koelsch-w2vbert-orthography",
         proc=None,
         title="Kölsch orthographic recogniser — w2v-BERT 2.0",
         tags="orthography, transcription",
@@ -282,6 +290,11 @@ def main():
     ap.add_argument("--push", action="store_true",
                     help="actually upload. Without it, nothing leaves this "
                          "machine.")
+    ap.add_argument("--card-only", action="store_true",
+                    help="upload just README.md. Use when only the numbers on "
+                         "the card changed — the weights are already on the "
+                         "Hub and re-sending 3.7 GB to fix a percentage is "
+                         "wasteful.")
     args = ap.parse_args()
 
     picks = [args.only] if args.only else list(MODELS)
@@ -339,21 +352,23 @@ def main():
     for key in picks:
         m = MODELS[key]
         repo = f"{args.owner}/{m['name']}"
-        print(f"\nuploading {repo} …")
+        print(f"\nuploading {'card for ' if args.card_only else ''}{repo} …")
         api.create_repo(repo, repo_type="model", exist_ok=True,
                         private=args.private)
-        api.upload_folder(folder_path=str(m["src"]), repo_id=repo,
-                          repo_type="model",
-                          ignore_patterns=["*.bin.index.json", "checkpoint-*"])
-        if m["proc"]:
-            api.upload_folder(folder_path=str(m["proc"]), repo_id=repo,
-                              repo_type="model")
-        fe = legacy_preprocessor(m["src"], m["proc"])
-        if fe is not None:
-            api.upload_file(path_or_fileobj=str(fe),
-                            path_in_repo="preprocessor_config.json",
-                            repo_id=repo, repo_type="model")
-            print("  + preprocessor_config.json (transformers 4.x)")
+        if not args.card_only:
+            api.upload_folder(folder_path=str(m["src"]), repo_id=repo,
+                              repo_type="model",
+                              ignore_patterns=["*.bin.index.json",
+                                               "checkpoint-*"])
+            if m["proc"]:
+                api.upload_folder(folder_path=str(m["proc"]), repo_id=repo,
+                                  repo_type="model")
+            fe = legacy_preprocessor(m["src"], m["proc"])
+            if fe is not None:
+                api.upload_file(path_or_fileobj=str(fe),
+                                path_in_repo="preprocessor_config.json",
+                                repo_id=repo, repo_type="model")
+                print("  + preprocessor_config.json (transformers 4.x)")
         api.upload_file(path_or_fileobj=str(card_dir / f"{m['name']}.md"),
                         path_in_repo="README.md", repo_id=repo,
                         repo_type="model")

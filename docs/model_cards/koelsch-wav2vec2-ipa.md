@@ -49,10 +49,12 @@ python tools/try_models.py align clip.wav        # TextGrid + plot
 
 | | |
 |---|---|
-| **PER** | **15.3 %** |
-| CER over the IPA stream | 15.3 % |
+| **PER** | **15.7 %** |
+| substitutions / deletions / insertions | 1,299 / 941 / 446 |
 
-467 held-out utterances, 21,463 reference phones, recomputed from the stored test predictions. For context, an off-the-shelf multilingual Wav2Vec2Phoneme scores ~33 % PER on comparable German-dialect material.
+467 held-out utterances, 17,122 reference phones, recomputed from the stored test predictions. Scored over the full token stream, which also contains a word-separator symbol that is not a phone, the rate is 15.3 % over 21,463 tokens; the phone-only figure is reported here because a phone error rate over non-phones is not one.
+
+For context, an off-the-shelf multilingual Wav2Vec2Phoneme used zero-shot scores about 33 % PER on comparable German-dialect material, so this fine-tune more than halves it — but that is a zero-shot baseline, and the test split here is not speaker-disjoint, so it is not a like-for-like win.
 
 > **These numbers are optimistic and it is worth knowing why.** The test split
 > is **not speaker-disjoint** — 103 of its 105 speakers also appear in training. So they measure how well the model

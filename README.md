@@ -184,7 +184,7 @@ Recomputed from the stored test predictions:
 
 | model | test set | | |
 |---|---|---|---|
-| **XLS-R-300M · phonemes** | 467 utterances, 21,463 reference phones | **PER 15.3 %** | CER 15.3 % |
+| **XLS-R-300M · phonemes** | 467 utterances, 17,122 reference phones | **PER 15.7 %** | 1,299 S / 941 D / 446 I |
 | **w2v-BERT 2.0 · orthography** | 582 utterances | WER 34.0 % | **CER 11.3 %** |
 
 For context, an off-the-shelf multilingual Wav2Vec2Phoneme scores ~33 % PER on
